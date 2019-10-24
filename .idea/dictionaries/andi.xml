@@ -2,6 +2,7 @@
   <dictionary name="andi">
     <words>
       <w>callables</w>
+      <w>conftest</w>
     </words>
   </dictionary>
 </component>
