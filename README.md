@@ -14,7 +14,7 @@ full-featured applications with Python.
 
 [![Coverage](https://ae-group.gitlab.io/ae_systems/coverage.svg)](
     https://ae-group.gitlab.io/ae_systems/coverage/ae_systems_py.html)
-[![MyPyPrecision]({repo_pages}/{package_name}/mypy.svg)]({repo_pages}/{package_name}/precision.txt)
+[![MyPyPrecision](https://ae-group.gitlab.io/ae_systems/mypy.svg)](https://ae-group.gitlab.io/ae_systems//precision.txt)
 [![PyLintScore](https://ae-group.gitlab.io/ae_systems/pylint.svg)](https://ae-group.gitlab.io/ae_systems/pylint.log)
 
 [![PyPIImplementation](https://img.shields.io/pypi/implementation/ae_systems)](https://pypi.org/project/ae-systems/)
