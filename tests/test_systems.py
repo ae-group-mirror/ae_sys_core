@@ -1,3 +1,4 @@
+""" ae_systems unit tests """
 from ae.systems import System, UsedSystems
 
 SS = 'Ss'       # test system ids
@@ -21,33 +22,44 @@ DBG_LEVEL_VERBOSE = 99
 
 
 class SystemConnectionSuccessMock:
+    """ test connection mock """
     def connect(self):
+        """ helper method """
         return not self or ''
 
     def close(self):
+        """ helper method """
         return not self or ''
 
     def disconnect(self):
+        """ helper method """
         return not self or ''
 
 
 class SystemConnectionFailureMock:
+    """ test connection mock """
     def connect(self):
+        """ helper method """
         return 'ConnectError' or self
 
 
 class SystemDisconnectionFailureMock:
+    """ test connection mock """
     def connect(self):
+        """ helper method """
         return not self or ''
 
     def close(self):
+        """ helper method """
         return 'CloseError' or self
 
     def disconnect(self):
+        """ helper method """
         return 'DisconnectError' or self
 
 
 def check_connector_args(cre, fea, ana, dlv):
+    """ test result helper """
     assert cre == SYS_CREDENTIALS or CREDENTIAL1 in cre and cre[CREDENTIAL1] == USER_NAME1, \
         "check_connect_args() SYS_CREDENTIALS failure"
     assert fea == SYS_FEATURES or fea == list(), "check_connect_args() SYS_FEATURES failure"
@@ -56,16 +68,19 @@ def check_connector_args(cre, fea, ana, dlv):
 
 
 def connector_success_mock(credentials, features, app_name, debug_level):
+    """ test result helper """
     check_connector_args(credentials, features, app_name, debug_level)
     return SystemConnectionSuccessMock()
 
 
 def connector_failure_mock(credentials, features, app_name, debug_level):
+    """ test result helper """
     check_connector_args(credentials, features, app_name, debug_level)
     return SystemConnectionFailureMock()
 
 
 def disconnect_failure_mock(credentials, features, app_name, debug_level):
+    """ test result helper """
     check_connector_args(credentials, features, app_name, debug_level)
     return SystemDisconnectionFailureMock()
 
@@ -141,6 +156,7 @@ class TestSystem:
 class TestUsedSystems:
     def test_init(self):
         def get_opt(opt):
+            """ test config getter function """
             ret = None
             if opt.endswith(CREDENTIAL1):
                 ret = USER_NAME1

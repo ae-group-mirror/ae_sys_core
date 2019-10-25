@@ -6,7 +6,7 @@ docs/_sources/
 docs/_static/
 logs/
 coverage.svg
-.mypy_report/
+mypy_report/
 .*.cfg
 .*.ini
 
