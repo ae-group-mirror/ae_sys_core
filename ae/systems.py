@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 
 class System:

@@ -23,12 +23,13 @@ pytest:
 
 flake8:
   script:
-    - flake8 --max-line-length=120 ae
+    - flake8 -v --max-line-length=120 ae
 
 mypy:
   script:
     - mkdir -p ./mypy_report
-    - python -m mypy -v --namespace-packages --show-error-codes --show-error-context --show-column-numbers --pretty --lineprecision-report mypy_report ae
+    - python -m mypy -v --namespace-packages --show-error-codes --show-error-context --show-column-numbers --pretty
+      --lineprecision-report mypy_report ae
     - anybadge --label=MyPy --value=Passed --file=mypy_report/mypy.svg -o
     - ls -l -R
   artifacts:
@@ -65,17 +66,18 @@ pages:
   stage: deploy
   dependencies:
     - pytest
+    - mypy
     - pylint
   script:
     - mkdir -p public/coverage
     - mv -f -v htmlcov/* public/coverage
     - mv -f -v coverage.txt public/
     - mv -f -v coverage.svg public/
-    - ls -l -R
     - mv -f -v mypy_report/lineprecision.txt public/
     - mv -f -v mypy_report/mypy.svg public/
     - mv -f -v pylint/pylint.svg public/
     - mv -f -v pylint/pylint.log public/
+    - ls -l -R
   artifacts:
     paths:
       - public
