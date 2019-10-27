@@ -28,9 +28,9 @@ flake8:
 mypy:
   script:
     - mkdir -p ./mypy_report
-    - python -m mypy --lineprecision-report mypy_report ae
+    - python -m mypy -v --namespace-packages --show-error-codes --show-error-context --show-column-numbers --pretty --lineprecision-report mypy_report ae
     - anybadge --label=MyPy --value=Passed --file=mypy_report/mypy.svg -o
-    - ll mypy_report
+    - ls -l -R
   artifacts:
     paths:
       - mypy_report/
@@ -71,7 +71,7 @@ pages:
     - mv -f -v htmlcov/* public/coverage
     - mv -f -v coverage.txt public/
     - mv -f -v coverage.svg public/
-    - ll mypy_report
+    - ls -l -R
     - mv -f -v mypy_report/lineprecision.txt public/
     - mv -f -v mypy_report/mypy.svg public/
     - mv -f -v pylint/pylint.svg public/
