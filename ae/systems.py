@@ -3,7 +3,49 @@
 from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
-__version__ = '0.0.4'
+from ae.literal import Literal  # type: ignore   # mypy
+
+__version__ = '0.0.5'
+
+
+SYS_SECTION_DEF = 'aeSystems'
+CFG_INIT_VAR_PREFIX = 'sys_init_'
+# CFG_CORE_VAR_PREFIX = 'sys_core_'
+
+
+def config_value(var_name, config_getters, default=None):
+    """ search config value first in MAIN_SECTION_DEF, then in SYS_SECTION for all config getters.
+
+    :param var_name:        config variable name.
+    :param config_getters:  config getter callables.
+    :param default:         default value return, if no config variable found.
+    :return:                config variable value or default (if not found).
+    """
+    for cfg in config_getters:
+        val = cfg(var_name)
+        if not val:
+            val = cfg(var_name, section=SYS_SECTION_DEF)
+        if val:
+            break
+    else:
+        val = default
+    if val:
+        val = Literal(val, str if default is None else type(default)).value
+    return val
+
+
+def ensure_default_from_cfg(var_name, given, config_getters):
+    """ check if given iterable/list is empty and if yes then load default from config files.
+
+    :param var_name:        config variable name suffix.
+    :param given:           given iterable.
+    :param config_getters:  config getter callables.
+    :return:                given value if not empty, else load via var_name from config variable.
+    """
+    if len(given) == 0:
+        var_name = CFG_INIT_VAR_PREFIX + var_name
+        given = config_value(var_name, config_getters, list())
+    return given
 
 
 class System:
@@ -86,52 +128,59 @@ class UsedSystems(OrderedDict):
     """
     def __init__(self, debug_level_disabled: int, debug_level_verbose: int, *available_systems: str,
                  config_getters: Tuple[Callable[[str], Any], ...] = (), sys_cred_items: Sequence = (),
-                 sys_cred_needed: Dict[str, Tuple] = None, sys_feat_items: Sequence = (), **sys_credentials: str):
+                 sys_cred_needed: Dict[str, Tuple] = None, sys_feat_items: Sequence = (),
+                 available_rec_types: Sequence[str] = (),
+                 **sys_credentials: str):
         """ create new instance of :class:`UsedSystems`.
 
         :param debug_level_disabled:    disable debug level.
         :param debug_level_verbose:     verbose debug level.
-        :param available_systems:       iterable of id string of all available systems.
+        :param available_systems:       iterable of id strings (optionally plus =<long-name>) of all available systems.
         :param config_getters:          iterable of callable config getters (called with literal/option name as arg).
         :param sys_cred_items:          iterable of all supported credential config option names.
         :param sys_cred_needed:         dict having system ids as keys and a iterable of needed credential option names
                                         for each system.
-        :param sys_feat_items:          iterable of other/feature system option names.
+        :param sys_feat_items:          iterable of all feature system option/config names.
+        :param available_rec_types:     iterable of record type strings (opt. plus =<long-name>) of all available recs.
         :param sys_credentials:         dict of all available/loaded system credential values.
         """
         super().__init__()
+        self._systems = self
         self.debug_messages: List[str] = list()
 
-        self._systems = self
-        self._available_systems = available_systems
+        available_systems = ensure_default_from_cfg('AvailableSystems', available_systems, config_getters)
+        self.available_systems = {sid: name for sid, name in ((_.split('=') + [_])[:2] for _ in available_systems)}
+
+        available_rec_types = ensure_default_from_cfg('AvailableRecordTypes', available_rec_types, config_getters)
+        self.available_rec_types = {sid: name for sid, name in ((_.split('=') + [_])[:2] for _ in available_rec_types)}
+
+        sys_cred_items = ensure_default_from_cfg('CredItems', sys_cred_items, config_getters)
+
         if sys_cred_needed is None:
-            sys_cred_needed = dict()
+            sys_cred_needed = config_value(CFG_INIT_VAR_PREFIX + 'CredNeeded', config_getters, dict())
+
+        sys_feat_items = ensure_default_from_cfg('FeatItems', sys_feat_items, config_getters)
+
+        if len(sys_credentials) == 0:
+            sys_credentials = config_value(CFG_INIT_VAR_PREFIX + 'Credentials', config_getters, dict())
 
         self.debug_messages.append(
-            "UsedSystems.__init__({}, {}, {}, {}, {}, {}, {}, {})"
-            .format(debug_level_disabled, debug_level_verbose, available_systems,
-                    config_getters, sys_cred_items, sys_cred_needed, sys_feat_items, sys_credentials))
+            f"UsedSystems.__init__({debug_level_disabled}, {debug_level_verbose}, {available_systems}"
+            f", {config_getters}, {sys_cred_items}, {sys_cred_needed}, {sys_feat_items}, {sys_credentials})")
 
-        for sys_id in available_systems:
-            self.debug_messages.append("Checking {} system:".format(sys_id))
+        for sys_id, sys_name in self.available_systems.items():
+            self.debug_messages.append(f"Checking {sys_name} system:")
             credentials = dict()
             for cred_item in sys_cred_items:
                 sys_cred_item = sys_id.lower() + '_' + cred_item.lower()
                 cfg_cred_item = sys_id.lower() + cred_item
-                found_cred = None
-                if sys_cred_item in sys_credentials:
-                    found_cred = sys_credentials[sys_cred_item]
-                else:
-                    for config_var_getter in config_getters:
-                        found_cred = config_var_getter(cfg_cred_item)
-                        if found_cred:
-                            break
+                found_cred = sys_credentials.get(sys_cred_item, config_value(cfg_cred_item, config_getters))
                 if found_cred is not None:
-                    self.debug_messages.append("found credential {}={}".format(cred_item, found_cred))
+                    self.debug_messages.append(f"found credential {cred_item}={found_cred}")
                     credentials[cred_item] = found_cred
             for cred_item in sys_cred_needed.get(sys_id, ()):
                 if cred_item not in credentials:
-                    self.debug_messages.append("requested credential {} undefined/incomplete/ignored".format(cred_item))
+                    self.debug_messages.append(f"requested credential {cred_item} undefined/incomplete/ignored")
                     self.debug_messages.append("Skipping unused/disabled system")
                     break    # ignore/skip not fully specified system - continue with next available system
             else:
@@ -139,15 +188,13 @@ class UsedSystems(OrderedDict):
                 features = list()
                 for feat_item in sys_feat_items:
                     if feat_item.startswith(sys_id.lower()):
-                        for config_var_getter in config_getters:
-                            found_feat = config_var_getter(feat_item)
-                            if found_feat:
-                                feat_item += '=' + str(found_feat)
-                                break
+                        found_feat = config_value(feat_item, config_getters)
+                        if found_feat:
+                            feat_item += '=' + str(found_feat)
                         features.append(feat_item)
                 # finally add system to this used systems instance
                 self._add_system(sys_id, credentials, debug_level_disabled, debug_level_verbose, features=features)
-                self.debug_messages.append("added system features={}".format(features))
+                self.debug_messages.append(f"added system features={features}")
                 self.debug_messages.append("System fully initialized")
 
     def _add_system(self, sys_id: str, credentials: Dict, debug_level_disabled: int, debug_level_verbose: int,
@@ -160,8 +207,8 @@ class UsedSystems(OrderedDict):
         :param debug_level_verbose:     verbose debug level.
         :param features:                optional list with special features for this system (see SDF_* constants).
         """
-        assert sys_id in self._available_systems, "UsedSystems._add_system(): unsupported system id {}".format(sys_id)
-        assert sys_id not in self._systems, "UsedSystems._add_system(): system id {} already specified".format(sys_id)
+        assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
+        assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"
         system = System(sys_id, credentials, debug_level_disabled, debug_level_verbose, features=features)
         self._systems[sys_id] = system
 
@@ -174,9 +221,9 @@ class UsedSystems(OrderedDict):
         """
         errors = list()
         for sys_id, system in self._systems.items():
-            assert sys_id in connectors, "UsedSystems.connect(): connector for system {} missing".format(sys_id)
+            assert sys_id in connectors, f"UsedSystems.connect(): connector for system {sys_id} missing"
             if system.connect(connectors[sys_id], **connector_args) or not system.connection:
-                errors.append(system.conn_error or "UsedSystems.connect(): system {} connection failed".format(sys_id))
+                errors.append(system.conn_error or f"UsedSystems.connect(): system {sys_id} connection failed")
         return "\n      ".join(errors)
 
     def disconnect(self) -> str:

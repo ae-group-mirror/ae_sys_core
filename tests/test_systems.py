@@ -1,5 +1,10 @@
 """ ae_systems unit tests """
-from ae.systems import System, UsedSystems
+import pytest
+from configparser import ConfigParser
+import os
+
+from ae.systems import *
+
 
 SS = 'Ss'       # test system ids
 SX = 'Xx'
@@ -155,17 +160,18 @@ class TestSystem:
 
 class TestUsedSystems:
     def test_init(self):
-        def get_opt(opt):
+        def get_opt(opt, section=''):
             """ test config getter function """
+            _ = section     # not used in this test
             ret = None
             if opt.endswith(CREDENTIAL1):
-                ret = USER_NAME1
+                ret = repr(USER_NAME1)
             elif opt == FEATURE1:
-                ret = FEATURE1
+                ret = repr(FEATURE1)
             return ret
 
         us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS, SX, SY, **SYS_CREDENTIALS)
-        assert SS in us._available_systems and SX in us._available_systems and SY in us._available_systems
+        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS in us and SX in us and SY in us
 
         us = UsedSystems(
@@ -173,7 +179,7 @@ class TestUsedSystems:
             config_getters=(get_opt, ), sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED,
             sys_feat_items=SYS_FEAT_ITEMS)
         print("\n".join(us.debug_messages))
-        assert SS in us._available_systems and SX in us._available_systems and SY in us._available_systems
+        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS in us and SX in us and SY in us
 
         us = UsedSystems(
@@ -181,7 +187,7 @@ class TestUsedSystems:
             config_getters=(get_opt, ), sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
             **SYS_CREDENTIALS)
         print("\n".join(us.debug_messages))
-        assert SS in us._available_systems and SX in us._available_systems and SY in us._available_systems
+        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS not in us and SX not in us and SY not in us
 
         us = UsedSystems(
@@ -190,7 +196,7 @@ class TestUsedSystems:
             sys_feat_items=SYS_FEAT_ITEMS,
             **SYS_CREDENTIALS)
         print("\n".join(us.debug_messages))
-        assert SS in us._available_systems and SX in us._available_systems and SY in us._available_systems
+        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS in us and SX in us and SY in us
 
     def test_connect_and_close(self):
@@ -229,3 +235,33 @@ class TestUsedSystems:
                          **SYS_CREDENTIALS)
         assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
         assert us.disconnect() == 'CloseError'
+
+
+@pytest.fixture
+def load_config():
+    """ provide config parser for tests of config vars """
+    cmd_cfg_parser = ConfigParser()
+    cmd_cfg_parser.optionxform = str  # or use 'lambda option: option' to have case-sensitive INI/CFG var names
+    cmd_cfg_parser.read(os.path.join('tests', 'test.cfg'))
+    yield lambda var_name, section=SYS_SECTION_DEF: cmd_cfg_parser.get(section, var_name, fallback=None)
+    cmd_cfg_parser.clear()
+
+
+class TestConfig:
+    """ using the config test file test.cfg """
+    def test_available(self, load_config):
+        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
+        assert us.available_systems == {'Ss': 'System S', 'Xx': 'SystemX', 'Yy': 'SysY'}
+        assert us.available_rec_types == {'C': 'Clients', 'R': 'Reservations', 'P': 'Products'}
+
+    def test_credentials(self, load_config):
+        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
+        assert us._systems[SS].credentials == {'User': 'cfg_user_ss'}
+        assert us._systems[SX].credentials == {'User': 'cfg_user_xx'}
+        assert us._systems[SY].credentials == {'User': 'cfg_user_yy'}
+
+    def test_features(self, load_config):
+        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
+        assert us._systems[SS].features == ["ssFeature='feature_ss'"]
+        assert us._systems[SX].features == ["xxFeature='feature_xx'"]
+        assert us._systems[SY].features == ["yyFeature='feature_yy'"]
