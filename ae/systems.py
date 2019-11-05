@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 from ae.literal import Literal  # type: ignore   # mypy
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 
 
 SYS_SECTION_DEF = 'aeSystems'
