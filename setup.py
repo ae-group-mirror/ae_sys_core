@@ -144,7 +144,7 @@ package_vars['portions_import_names'] = ("\n" + " " * 4).join(
 
 
 if __name__ == "__main__":
-    setuptools.setup(
+    setup_kwargs = dict(
         name=package_name,              # pip install name (not the import package name)
         version=package_vars['package_version'],
         author="Andi Ecker",
@@ -182,3 +182,5 @@ if __name__ == "__main__":
             'development',
         ]
     )
+    print(setup_kwargs)
+    setuptools.setup(**setup_kwargs)
