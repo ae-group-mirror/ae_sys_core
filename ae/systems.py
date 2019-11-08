@@ -1,110 +1,155 @@
-""" manage user credentials and other config options for external systems (servers, databases, cloud stores, ...)
+"""
+dynamic system configuration, initialization and connection
+===========================================================
+
+This module is helping you to dynamically configure and connect your application
+to all their needed external systems (like servers, databases, cloud stores, ...).
+
+
+used systems
+------------
+
+By creating an instance of the class :class:`UsedSystems` you get a dictionary-like
+object with all the properties for each configured system. The items of this dict
+are instances of the private class :class:`_System`.
+
+
+.. _system-properties:
+
+dynamic system properties
+.........................
+
+The properties of your systems are specified within :ref:`config files <.console.config files>`
+as :ref:`~.console.config-variables`.
+
+The only mandatory config variable is a dict with the name `AvailableSystems`, where the dict keys
+are the system ids. The dict items are also dicts with string keys and called `system configs`.
+Only `name` is mandatory in the system configs. The following system config dict keys are supported:
+
+* **name** : system name (used for repr() and debugging).
+* **credential_keys** : List[str] of credential keys needed for to connect to this system.
+* **feature_keys** : List[str] of feature keys supported by this system.
+* **available_rec_types** : Dict[str, str] of supported rec type ids and names.
+* **connector_module** : name of the connector package.module (def=ae.sys_data_<system-id>).
+* **connector_class** : name of the connector class (def=<system-id>SysConnector),
+
+The value of each credential and feature key gets automatically dynamically read from a config
+variable. The name of these config variables is the key string, prefixed with the system id in
+lower case. So if e.g. the value of a credential key 'User' for the system id 'Abc' will be
+loaded from a config variable with the name `abcUser`. All the credential and feature config
+variables can be either stored in the main or the systems section (and can optionally be
+prefixed with `sys_init_` for to prevent name conflicts) - see also :func:`config_value`.
+
+An example of a system configuration you find in the config file `test.cfg`, situated in the
+tests folder of this package.
+
+
+multiple system configurations
+..............................
+
+For to provide multiple system configurations for the same application (suite) you can use
+individual config files for each application instance with a separate config file
+(see .sys_env<SYS_ENV_ID>.cfg :ref:`here <.console.config-files>`).
 """
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+import importlib
+from typing import Any, Dict, Optional, Sequence
 
-from ae.literal import Literal  # type: ignore   # mypy
+from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
+from ae.console import ConsoleApp                               # type: ignore   # mypy
 
-__version__ = '0.0.9'
-
-
-SYS_SECTION_DEF = 'aeSystems'
-CFG_INIT_VAR_PREFIX = 'sys_init_'
-# CFG_CORE_VAR_PREFIX = 'sys_core_'
+__version__ = '0.0.10'
 
 
-def config_value(var_name, config_getters, default=None):
-    """ search config value first in MAIN_SECTION_DEF, then in SYS_SECTION for all config getters.
+HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)
+SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
+CFG_INIT_VAR_PREFIX = 'sys_init_'               #: prefix for long/unique config variable names
 
-    :param var_name:        config variable name.
-    :param config_getters:  config getter callables.
-    :param default:         default value return, if no config variable found.
-    :return:                config variable value or default (if not found).
+
+def config_value(var_name: str, console_app: ConsoleApp) -> Any:
+    """ determine system configuration setting value from application config options/variables.
+
+    :param var_name:        config variable name. Variable value gets searched in the application instance config,
+                            first in the options, then in MAIN_SECTION_NAME/aeOptions,
+                            then in SYS_SECTION_NAME/aeSystems and finally in SYS_SECTION_NAME with the
+                            variable name prefix CFG_INIT_VAR_PREFIX/'sys_init_'.
+    :param console_app:     ConsoleApp instance of the application providing these config options/variables.
+    :return:                config variable value if found else None.
     """
-    for cfg in config_getters:
-        val = cfg(var_name)
-        if not val:
-            val = cfg(var_name, section=SYS_SECTION_DEF)
-        if val:
-            break
-    else:
-        val = default
-    if val:
-        val = Literal(val, str if default is None else type(default)).value
+    val = console_app.get_var(var_name)
+    if val is None:
+        val = console_app.get_var(var_name, section=SYS_SECTION_NAME)
+        if val is None:
+            val = console_app.get_var(CFG_INIT_VAR_PREFIX + var_name, section=SYS_SECTION_NAME)
     return val
 
 
-def ensure_default_from_cfg(var_name, given, config_getters):
-    """ check if given iterable/list is empty and if yes then load default from config files.
+class _System:
+    """ instance represents an external system, including their system properties and a connection object.
 
-    :param var_name:        config variable name suffix.
-    :param given:           given iterable.
-    :param config_getters:  config getter callables.
-    :return:                given value if not empty, else load via var_name from config variable.
+    Exclusively used by :class:`UsedSystems`.
     """
-    if len(given) == 0:
-        var_name = CFG_INIT_VAR_PREFIX + var_name
-        given = config_value(var_name, config_getters, list())
-    return given
-
-
-class System:
-    """ each instance of this class is representing an external system.
-    """
-    def __init__(self, sys_id: str, credentials: Dict, debug_level_disabled: int, debug_level_verbose: int,
-                 features: Sequence = None):
-        """ create new :class:`System` instance.
+    def __init__(self, sys_id: str, console_app: ConsoleApp, credentials: Dict[str, str],
+                 features: Sequence[str] = (),
+                 available_rec_types: Optional[Dict[str, str]] = None):
+        """ create new :class:`_System` instance.
 
         :param sys_id:                  unique str for to identify a system (also used as prefix/suffix).
-        :param credentials:             dict for to access system, containing e.g. user name, password, token, dsn
-        :param debug_level_disabled:    disable debug level.
-        :param debug_level_verbose:     verbose debug level.
+        :param console_app:             ConsoleApp instance of the application using these systems.
+        :param credentials:             dict for to access system, containing e.g. user name, password, token, dsn...
         :param features:                optional list with special features for this system (see SDF_* constants).
+        :param available_rec_types:     optional dict of available record types for this system.
         """
-        self.sys_id = sys_id
-        self.credentials = credentials
-        self.debug_level_disabled = debug_level_disabled
-        self.debug_level_verbose = debug_level_verbose
-        self.features = features or list()
+        self.sys_id = sys_id                            #: system id
+        self.console_app = console_app                  #: application instance and config environment
+        self.credentials = credentials                  #: credentials for to connect to this system
+        self.features = features                        #: system specific features and configs
+        self.available_rec_types = available_rec_types or dict()  #: record types available in this system
 
-        self.connection = None
-        self.conn_error = ""
-        self.app_name = ''
-        self.debug_level = debug_level_disabled
+        self.connection: Any = None                     #: object with opt. connect() and disconnect()/close() methods
+        self.conn_error: str = ""                       #: error message of last dis-/connecting
 
     def __repr__(self) -> str:
+        """ representation string of this :class:`_System` instance.
+
+        :return: representation string of this instance.
+        """
         ret = self.sys_id
         if self.conn_error:
             ret += "!" + self.conn_error
-        if self.debug_level != self.debug_level_disabled:
+        if self.console_app.debug_level != DEBUG_LEVEL_DISABLED:
             cre = self.credentials
-            ret += "&" + (repr(cre) if self.debug_level >= self.debug_level_verbose else repr(cre.get('User')))
+            ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
+                              {k: v for k, v in cre.items() if k not in HIDDEN_CREDENTIALS})
             ret += "_" + repr(self.features)
-            ret += "@" + repr(self.app_name)
+            ret += "@" + repr(self.console_app.app_name)
         return ret
 
-    def connect(self, connector: Callable, app_name: str = '', debug_level: int = None, force_reconnect: bool = False
-                ) -> str:
-        """ connect this :class:`System` instance to his system using the passed :data:`connector` callable.
+    def connect(self, sys_config: Dict[str, str],
+                debug_level: Optional[int] = None, force_reconnect: bool = False) -> str:
+        """ connect this instance to his system.
 
-        :param connector:           connector callable for to connect this system.
-        :param app_name:            application name.
-        :param debug_level:         debug level.
-        :param force_reconnect:     pass True to force re-connection.
+        :param sys_config:          dict with the :ref:`dynamic config properties of this system <system-properties>`.
+        :param debug_level:         optional debug level passed to system connector (def=self.ca.debug_level).
+        :param force_reconnect:     optional; pass True to force re-connection (even if self.connection is initialized).
         :return:                    error message or empty string in case of no errors while re-connecting.
         """
         if debug_level is None:
-            debug_level = self.debug_level_disabled
+            debug_level = self.console_app.debug_level
+
+        mod_name = sys_config.get('connector_module', 'ae.sys_core_' + self.sys_id.lower())
+        connector_module = importlib.import_module(mod_name)
+        cls_name = sys_config.get('connector_class', self.sys_id + 'SysConnector')
+        connector_class = getattr(connector_module, cls_name)
+
         self.conn_error = ""
-        if not self.connection or self.conn_error or force_reconnect:
-            self.connection = connector(self.credentials, features=self.features,
-                                        app_name=app_name, debug_level=debug_level)
+        if not self.connection or force_reconnect:
+            self.connection = connector_class(self.credentials, features=self.features,
+                                              app_name=self.console_app.app_name, debug_level=debug_level)
             if self.connection and callable(getattr(self.connection, 'connect', False)):
                 self.conn_error = self.connection.connect()
                 if self.conn_error:
                     self.connection = None
-        self.app_name = app_name or 'ae.sys_data'
-        self.debug_level = debug_level
         return self.conn_error
 
     def disconnect(self) -> str:
@@ -114,10 +159,10 @@ class System:
         """
         err_msg = ""
         if self.connection:
-            if callable(getattr(self.connection, 'close', False)):
-                err_msg = self.connection.close()
-            elif callable(getattr(self.connection, 'disconnect', False)):
+            if callable(getattr(self.connection, 'disconnect', False)):
                 err_msg = self.connection.disconnect()
+            elif callable(getattr(self.connection, 'close', False)):
+                err_msg = self.connection.close()
             self.connection = None
         self.conn_error = err_msg
         return err_msg
@@ -125,113 +170,120 @@ class System:
 
 class UsedSystems(OrderedDict):
     """ An instance of this class is keeping a dictionary of all the found and used systems of this application.
+
+    The keys of this dictionary-like class are the system ids of your application. The items are instances
+    of the :class:`_System` class.
+
+    Each instance is providing additionally the following instance attributes:
+
+    * *console_app* - instance of the :class:`~.console.ConsoleApp` class that is using these systems.
+    * *available_systems* - system properties loaded from config files.
+
+    All the system-specific properties are stored within the :class:`_System` instances.
     """
-    def __init__(self, debug_level_disabled: int, debug_level_verbose: int, *available_systems: str,
-                 config_getters: Tuple[Callable[[str], Any], ...] = (), sys_cred_items: Sequence = (),
-                 sys_cred_needed: Dict[str, Tuple] = None, sys_feat_items: Sequence = (),
-                 available_rec_types: Sequence[str] = (),
-                 **sys_credentials: str):
+    def __init__(self, console_app: ConsoleApp, *selected_systems: str, **entered_credentials: str):
         """ create new instance of :class:`UsedSystems`.
 
-        :param debug_level_disabled:    disable debug level.
-        :param debug_level_verbose:     verbose debug level.
-        :param available_systems:       iterable of id strings (optionally plus =<long-name>) of all available systems.
-        :param config_getters:          iterable of callable config getters (called with literal/option name as arg).
-        :param sys_cred_items:          iterable of all supported credential config option names.
-        :param sys_cred_needed:         dict having system ids as keys and a iterable of needed credential option names
-                                        for each system.
-        :param sys_feat_items:          iterable of all feature system option/config names.
-        :param available_rec_types:     iterable of record type strings (opt. plus =<long-name>) of all available recs.
-        :param sys_credentials:         dict of all available/loaded system credential values.
+        :param console_app:             ConsoleApp instance of the application using these systems.
+        :param selected_systems:        optional iterable of system id strings of the available systems that have to be
+                                        initialized for the app specified by the :paramref:`.console_app` argument.
+                                        If no system id get passed then all available systems will be initialized
+                                        from the config variable `aeSystems/sys_init_AvailableSystems`.
+        :param entered_credentials:     optional dict of credentials entered by a user at run-time (overwriting
+                                        the values set in the related config variable `sys_init_AvailableSystems`).
+                                        The keys of this dictionary starting with the system id in lower case,
+                                        followed by one of the key strings specified in the **credential_keys** config
+                                        list (see :ref:`system-properties`).
         """
         super().__init__()
         self._systems = self
-        self.debug_messages: List[str] = list()
 
-        available_systems = ensure_default_from_cfg('AvailableSystems', available_systems, config_getters)
-        self.available_systems = {sid: name for sid, name in ((_.split('=') + [_])[:2] for _ in available_systems)}
+        self.console_app = console_app
 
-        available_rec_types = ensure_default_from_cfg('AvailableRecordTypes', available_rec_types, config_getters)
-        self.available_rec_types = {sid: name for sid, name in ((_.split('=') + [_])[:2] for _ in available_rec_types)}
+        conf_systems = config_value('AvailableSystems', self.console_app)
+        if not conf_systems:
+            # noinspection PyProtectedMember
+            self.console_app.po(f"****  UsedSystems don't found the 'AvailableSystems' option or config variable"
+                                f"in the config files ({self.console_app._cfg_files})")
+            return
+        if selected_systems:
+            self.available_systems = {k: v for k, v in conf_systems.items() if k in selected_systems}
+        else:
+            self.available_systems = conf_systems
 
-        sys_cred_items = ensure_default_from_cfg('CredItems', sys_cred_items, config_getters)
+        self._load_merge_cred_feat(entered_credentials)
 
-        if sys_cred_needed is None:
-            sys_cred_needed = config_value(CFG_INIT_VAR_PREFIX + 'CredNeeded', config_getters, dict())
+    def _load_merge_cred_feat(self, entered_credentials: Dict[str, str]):
+        """ load and initialize all used system configs and merge entered credentials into it.
 
-        sys_feat_items = ensure_default_from_cfg('FeatItems', sys_feat_items, config_getters)
-
-        if len(sys_credentials) == 0:
-            sys_credentials = config_value(CFG_INIT_VAR_PREFIX + 'Credentials', config_getters, dict())
-
-        self.debug_messages.append(
-            f"UsedSystems.__init__({debug_level_disabled}, {debug_level_verbose}, {available_systems}"
-            f", {config_getters}, {sys_cred_items}, {sys_cred_needed}, {sys_feat_items}, {sys_credentials})")
-
-        for sys_id, sys_name in self.available_systems.items():
-            self.debug_messages.append(f"Checking {sys_name} system:")
+        :param entered_credentials:     see :paramref:`UsedSystems.entered_credentials`.
+        """
+        debug_level = self.console_app.debug_level
+        for sys_id, sys_config in self.available_systems.items():
+            self.console_app.po(f"###   Loading configuration of {sys_config.get('name')} system ({sys_id})...")
             credentials = dict()
-            for cred_item in sys_cred_items:
-                sys_cred_item = sys_id.lower() + '_' + cred_item.lower()
-                cfg_cred_item = sys_id.lower() + cred_item
-                found_cred = sys_credentials.get(sys_cred_item, config_value(cfg_cred_item, config_getters))
-                if found_cred is not None:
-                    self.debug_messages.append(f"found credential {cred_item}={found_cred}")
-                    credentials[cred_item] = found_cred
-            for cred_item in sys_cred_needed.get(sys_id, ()):
-                if cred_item not in credentials:
-                    self.debug_messages.append(f"requested credential {cred_item} undefined/incomplete/ignored")
-                    self.debug_messages.append("Skipping unused/disabled system")
-                    break    # ignore/skip not fully specified system - continue with next available system
+            for cred_key in sys_config.get('credential_keys', ()):
+                cred_var = sys_id.lower() + cred_key
+                found_cred = entered_credentials.get(cred_var, config_value(cred_var, self.console_app))
+                if found_cred is None:
+                    self.console_app.po(f"***   Ignoring system {sys_id}; credential {cred_var} undefined/incomplete")
+                    break  # ignore/skip not fully specified system - continue with next available system
+                credentials[cred_key] = found_cred
+                if debug_level > DEBUG_LEVEL_DISABLED:
+                    if debug_level < DEBUG_LEVEL_VERBOSE and cred_key in HIDDEN_CREDENTIALS:
+                        found_cred = "<hidden>"
+                    self.console_app.po(f"..    found credential {cred_var}={found_cred}")
             else:
                 # now collect features for this system with complete credentials
                 features = list()
-                for feat_item in sys_feat_items:
-                    if feat_item.startswith(sys_id.lower()):
-                        found_feat = config_value(feat_item, config_getters)
-                        if found_feat:
-                            feat_item += '=' + str(found_feat)
-                        features.append(feat_item)
+                for feat_key in sys_config.get('feature_keys', ()):
+                    feat_var = sys_id.lower() + feat_key
+                    found_feat = config_value(feat_var, self.console_app)
+                    if found_feat:
+                        feat_key += '=' + str(found_feat)
+                        features.append(feat_key)
+                        if debug_level > DEBUG_LEVEL_DISABLED:
+                            self.console_app.po(f"..    found feature {feat_var}={found_feat}")
                 # finally add system to this used systems instance
-                self._add_system(sys_id, credentials, debug_level_disabled, debug_level_verbose, features=features)
-                self.debug_messages.append(f"added system features={features}")
-                self.debug_messages.append("System fully initialized")
+                self._add_system(sys_id, credentials, features=features)
 
-    def _add_system(self, sys_id: str, credentials: Dict, debug_level_disabled: int, debug_level_verbose: int,
-                    features: Sequence = None):
-        """ add new :class:`System` instance to this :class:`UsedSystems` instance.
+    def _add_system(self, sys_id: str, credentials: Dict[str, str], features: Sequence[str] = ()):
+        """ add new :class:`_System` instance to this :class:`UsedSystems` instance.
 
         :param sys_id:                  system id.
         :param credentials:             credentials of the new system to add.
-        :param debug_level_disabled:    disabled debug level.
-        :param debug_level_verbose:     verbose debug level.
         :param features:                optional list with special features for this system (see SDF_* constants).
         """
         assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
         assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"
-        system = System(sys_id, credentials, debug_level_disabled, debug_level_verbose, features=features)
-        self._systems[sys_id] = system
+        rec_types = self.available_systems[sys_id].get('available_rec_types')
+        self._systems[sys_id] = _System(sys_id, self.console_app, credentials, features, rec_types)
 
-    def connect(self, connectors: Dict[str, Callable], **connector_args: Any) -> str:
-        """ connect this :class:`System` instance to his system using the passed :data:`connector` callable.
+    def connect(self, debug_level: Optional[int] = None, force_reconnect: bool = False) -> str:
+        """ connect all the selected systems of this instance.
 
-        :param connectors:      connector callables for to connect all available systems.
-        :param connector_args:  additional connector arguments.
+        :param debug_level:     optional debug level passed to system connector (def=self.ca.debug_level).
+        :param force_reconnect: optional; pass True to force re-connection (even if self.connection is initialized).
         :return:                error message or empty string in case of no errors while re-connecting.
         """
         errors = list()
         for sys_id, system in self._systems.items():
-            assert sys_id in connectors, f"UsedSystems.connect(): connector for system {sys_id} missing"
-            if system.connect(connectors[sys_id], **connector_args) or not system.connection:
-                errors.append(system.conn_error or f"UsedSystems.connect(): system {sys_id} connection failed")
-        return "\n      ".join(errors)
+            assert sys_id in self.available_systems, f"sys_config for system {sys_id} missing"
+            if system.connect(self.available_systems[sys_id], debug_level=debug_level, force_reconnect=force_reconnect)\
+                    or not system.connection:
+                errors.append(system.conn_error or f"{sys_id} connection failed")
+        if errors:
+            errors.insert(0, f"####  UsedSystems.connect({debug_level}, {force_reconnect}):")
+        return "\n   #  ".join(errors)
 
     def disconnect(self) -> str:
         """ disconnect all available and already connected systems.
 
         :return:                error message string or empty string if no errors occurred on disconnection.
         """
-        err_msg = ""
+        errors = list()
         for system in self._systems.values():
-            err_msg += system.disconnect()
-        return err_msg
+            err_msg = system.disconnect()
+            if err_msg:
+                errors.append(err_msg)
+        return "\n   #  ".join(["####  UsedSystems.disconnect():"] + errors) if errors else ""

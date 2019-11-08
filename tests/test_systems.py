@@ -1,267 +1,234 @@
 """ ae_systems unit tests """
 import pytest
-from configparser import ConfigParser
-import os
+import sys
 
-from ae.systems import *
+# noinspection PyProtectedMember
+from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
+from ae.console import ConsoleApp
+# noinspection PyProtectedMember
+from ae.systems import _System, UsedSystems
 
 
-SS = 'Ss'       # test system ids
+SS = 'Ss'                               # test system ids; change together with related config var in test.cfg
 SX = 'Xx'
 SY = 'Yy'
 
-CREDENTIAL1 = 'User'
-SYS_CRED_USER = SS.lower() + '_' + CREDENTIAL1.lower()
-USER_NAME1 = 'test_user'
-SYS_CREDENTIALS = {SYS_CRED_USER: USER_NAME1,
-                   SX.lower() + '_' + CREDENTIAL1.lower(): USER_NAME1,
-                   SY.lower() + '_' + CREDENTIAL1.lower(): USER_NAME1}
-SYS_CRED_ITEMS = (CREDENTIAL1,)
-SYS_CRED_NEEDED = {SS: SYS_CRED_ITEMS, SX: SYS_CRED_ITEMS, SY: SYS_CRED_ITEMS}
+USR_CFG = 'cfg_user_ss'                 # change together with related config var in test.cfg
+PWD_CFG = 'cfg_secret'                  # change together with related config var in test.cfg
+
+CRED_KEY_USR = 'User'
+CRED_KEY_PWD = 'Password'
+USR_NAME1 = 'test_user'
+ALL_CREDENTIALS = {SS.lower() + CRED_KEY_USR: USR_NAME1,
+                   SX.lower() + CRED_KEY_USR: USR_NAME1,
+                   SY.lower() + CRED_KEY_USR: USR_NAME1}
+SYS_CREDENTIALS = {CRED_KEY_USR: USR_NAME1}
 FEATURE1 = 'ss_extra_feature'
-SYS_FEAT_ITEMS = (FEATURE1,)
 SYS_FEATURES = [FEATURE1]
-APP_NAME = 'test_sys_app_name'
-DBG_LEVEL_DISABLED = -1
-DBG_LEVEL_VERBOSE = 99
+SYS_DICTS = {SS: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'connector_success_mock'},
+             SX: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'connector_failure_mock'},
+             SY: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'disconnect_failure_mock'}
+             }
 
 
-class SystemConnectionSuccessMock:
-    """ test connection mock """
-    def connect(self):
-        """ helper method """
-        return not self or ''
-
-    def close(self):
-        """ helper method """
-        return not self or ''
-
-    def disconnect(self):
-        """ helper method """
-        return not self or ''
+@pytest.fixture
+def console_app_env():
+    """ ConsoleApp with automatic option arg reset and app unregister """
+    old_argv = sys.argv
+    sys.argv = ['test_app_key', ]
+    yield ConsoleApp('Console App Environment for ae.systems unit tests', additional_cfg_files=('tests/test.cfg', ))
+    with app_inst_lock:
+        app_keys = list(reversed(list(_app_instances.keys())))
+        for key in app_keys:
+            _unregister_app_instance(key)   # remove app from ae.core app register/dict
+    sys.argv = old_argv
 
 
-class SystemConnectionFailureMock:
-    """ test connection mock """
-    def connect(self):
-        """ helper method """
-        return 'ConnectError' or self
+class TestConfig:
+    """ using the config test file test.cfg """
+    def test_available(self, console_app_env):
+        us = UsedSystems(console_app_env)
+        assert SS in us
+        assert SX in us
+        assert SY in us
+        assert {k: v['name'] for k, v in us.available_systems.items()} \
+            == {'Ss': 'System S', 'Xx': 'SystemX', 'Yy': 'SysY'}
+        assert us[SY].available_rec_types == {'C': 'Clients', 'R': 'Reservations', 'P': 'Products'}
 
+    def test_credentials(self, console_app_env):
+        us = UsedSystems(console_app_env)
+        assert us[SS].credentials == {'User': 'cfg_user_ss', 'Password': PWD_CFG}
+        assert us[SX].credentials == {'User': 'cfg_user_xx'}
+        assert us[SY].credentials == {'User': 'cfg_user_yy'}
 
-class SystemDisconnectionFailureMock:
-    """ test connection mock """
-    def connect(self):
-        """ helper method """
-        return not self or ''
-
-    def close(self):
-        """ helper method """
-        return 'CloseError' or self
-
-    def disconnect(self):
-        """ helper method """
-        return 'DisconnectError' or self
-
-
-def check_connector_args(cre, fea, ana, dlv):
-    """ test result helper """
-    assert cre == SYS_CREDENTIALS or CREDENTIAL1 in cre and cre[CREDENTIAL1] == USER_NAME1, \
-        "check_connect_args() SYS_CREDENTIALS failure"
-    assert fea == SYS_FEATURES or fea == list(), "check_connect_args() SYS_FEATURES failure"
-    assert ana == APP_NAME, "check_connect_args() application name failure"
-    assert dlv == DBG_LEVEL_DISABLED or dlv == DBG_LEVEL_VERBOSE, "check_connect_args() DBG_LEVEL_VERBOSE failure"
-
-
-def connector_success_mock(credentials, features, app_name, debug_level):
-    """ test result helper """
-    check_connector_args(credentials, features, app_name, debug_level)
-    return SystemConnectionSuccessMock()
-
-
-def connector_failure_mock(credentials, features, app_name, debug_level):
-    """ test result helper """
-    check_connector_args(credentials, features, app_name, debug_level)
-    return SystemConnectionFailureMock()
-
-
-def disconnect_failure_mock(credentials, features, app_name, debug_level):
-    """ test result helper """
-    check_connector_args(credentials, features, app_name, debug_level)
-    return SystemDisconnectionFailureMock()
-
-
-CONNECTORS = {SS: connector_success_mock, SX: connector_failure_mock, SY: disconnect_failure_mock}
+    def test_features(self, console_app_env):
+        us = UsedSystems(console_app_env)
+        assert us[SS].features == ["Feature=feature_ss"]
+        assert us[SX].features == ["Feature=feature_xx"]
+        assert us[SY].features == ["Feature=feature_yy"]
 
 
 class TestSystem:
-    def test_init(self):
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
+    def test_init_empty_cred(self, console_app_env):
+        empty_dict = dict()
+        s = _System(SX, console_app_env, empty_dict)
         assert s.sys_id == SX
-        assert s.credentials == SYS_CREDENTIALS
-        assert s.debug_level_disabled == DBG_LEVEL_DISABLED
-        assert s.debug_level_verbose == DBG_LEVEL_VERBOSE
-        assert s.features == SYS_FEATURES
+        assert s.credentials == empty_dict
+        assert s.features == ()
         assert s.connection is None
         assert s.conn_error == ''
-        assert s.app_name == ''
-        assert s.debug_level == DBG_LEVEL_DISABLED
 
-    def test_repr(self):
-        s = System(SS, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
+    def test_init_entered_cred(self, console_app_env):
+        user_cred = dict(User='test_usr_name')
+        feat = ('WhatAFeature', )
+        s = _System(SX, console_app_env, user_cred, feat)
+        assert s.sys_id == SX
+        assert s.credentials == user_cred
+        assert s.features == feat
+        assert s.connection is None
+        assert s.conn_error == ''
+
+    def test_repr_debug_change(self, console_app_env):
+        ext_cred = SYS_CREDENTIALS.copy()
+        ext_cred[CRED_KEY_PWD] = 's_e_c_r_e_t'
+        s = _System(SS, console_app_env, ext_cred, features=SYS_FEATURES)
+        usr = s.credentials.get(CRED_KEY_USR)
+        pwd = s.credentials.get(CRED_KEY_PWD)
         assert SS in repr(s)
-        assert s.connect(connector_failure_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == 'ConnectError'
+        assert usr not in repr(s)
+        assert pwd not in repr(s)
+        assert FEATURE1 not in repr(s)
+        assert console_app_env.app_name not in repr(s)
+
+        console_app_env.debug_level = DEBUG_LEVEL_ENABLED
+        assert SS in repr(s)
+        assert usr in repr(s)
+        assert pwd not in repr(s)
+        assert FEATURE1 in repr(s)
+        assert console_app_env.app_name in repr(s)
+
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        assert SS in repr(s)
+        assert usr in repr(s)
+        assert pwd in repr(s)
+        assert FEATURE1 in repr(s)
+        assert console_app_env.app_name in repr(s)
+
+    def test_repr_debug_verbose(self, console_app_env):
+        s = _System(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        s.console_app.debug_level = DEBUG_LEVEL_VERBOSE
+        usr = s.credentials.get(CRED_KEY_USR)
+        assert SS in repr(s)
+        assert usr in repr(s)
+        assert FEATURE1 in repr(s)
+        assert repr(s.features) in repr(s)
+        assert console_app_env.app_name in repr(s)
+
+    def test_repr_after_error(self, console_app_env):
+        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert SX in repr(s)
+        assert s.connect(SYS_DICTS[SX], debug_level=DEBUG_LEVEL_VERBOSE) == 'ConnectError'
+        assert s.conn_error == 'ConnectError'
         assert s.conn_error in repr(s)
 
-        assert s.connect(connector_success_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
-        rep = repr(s)
-        assert s.credentials.get(SYS_CRED_USER) in rep
-        assert repr(s.features) in rep
-        assert APP_NAME in rep
-
-    def test_connect_and_close(self):
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(connector_success_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
+    def test_connect_and_close(self, console_app_env):
+        s = _System(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SS]) == ''
+        assert hasattr(s.connection, 'connect')
         assert s.conn_error == ''
         assert s.disconnect() == ''
         assert s.conn_error == ''
 
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(connector_success_mock, app_name=APP_NAME) == ''
-        assert s.conn_error == ''
-        s.connection.close = None
-        assert s.disconnect() == ''
-        assert s.conn_error == ''
-
-    def test_connect_error(self):
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(connector_failure_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == 'ConnectError'
+    def test_connect_error(self, console_app_env):
+        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SX]) == 'ConnectError'
+        assert not hasattr(s.connection, 'connect')
         assert s.conn_error == 'ConnectError'
         assert s.disconnect() == ''
         assert s.conn_error == ''
 
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(connector_failure_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == 'ConnectError'
+        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SX], debug_level=DEBUG_LEVEL_VERBOSE) == 'ConnectError'
         assert s.conn_error == 'ConnectError'
         assert s.disconnect() == ''
         assert s.conn_error == ''
 
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(disconnect_failure_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
+    def test_close_error(self, console_app_env):
+        s = _System(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SY], debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        assert hasattr(s.connection, 'disconnect')
+        s.connection.disconnect = None
         assert s.conn_error == ''
         assert s.disconnect() == 'CloseError'
         assert s.conn_error == 'CloseError'
 
-        s = System(SX, SYS_CREDENTIALS, DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, features=SYS_FEATURES)
-        assert s.connect(disconnect_failure_mock, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
+    def test_disconnect_error(self, console_app_env):
+        s = _System(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SY], debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        assert hasattr(s.connection, 'close')
         s.connection.close = None
         assert s.disconnect() == 'DisconnectError'
         assert s.conn_error == 'DisconnectError'
 
 
 class TestUsedSystems:
-    def test_init(self):
-        def get_opt(opt, section=''):
-            """ test config getter function """
-            _ = section     # not used in this test
-            ret = None
-            if opt.endswith(CREDENTIAL1):
-                ret = repr(USER_NAME1)
-            elif opt == FEATURE1:
-                ret = repr(FEATURE1)
-            return ret
-
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS, SX, SY, **SYS_CREDENTIALS)
+    def test_init_from_cfg(self, console_app_env):
+        us = UsedSystems(console_app_env)
         assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS in us and SX in us and SY in us
+        assert us[SS].credentials[CRED_KEY_USR] == USR_CFG
+        assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
 
-        us = UsedSystems(
-            DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS, SX, SY,
-            config_getters=(get_opt, ), sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED,
-            sys_feat_items=SYS_FEAT_ITEMS)
-        print("\n".join(us.debug_messages))
+    def test_init_selected_all(self, console_app_env):
+        us = UsedSystems(console_app_env, SS, SX, SY)
         assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
         assert SS in us and SX in us and SY in us
+        assert us[SS].credentials[CRED_KEY_USR] == USR_CFG
+        assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
 
-        us = UsedSystems(
-            DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS, SX, SY,
-            config_getters=(get_opt, ), sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-            **SYS_CREDENTIALS)
-        print("\n".join(us.debug_messages))
-        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
-        assert SS not in us and SX not in us and SY not in us
+    def test_init_selected_one(self, console_app_env):
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
+        assert SS in us.available_systems
+        assert SX not in us.available_systems
+        assert SY not in us.available_systems
+        assert SS in us and SX not in us and SY not in us
+        assert us[SS].credentials[CRED_KEY_USR] == USR_NAME1
+        assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
 
-        us = UsedSystems(
-            DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS, SX, SY,
-            config_getters=(get_opt, ), sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED,
-            sys_feat_items=SYS_FEAT_ITEMS,
-            **SYS_CREDENTIALS)
-        print("\n".join(us.debug_messages))
-        assert SS in us.available_systems and SX in us.available_systems and SY in us.available_systems
-        assert SS in us and SX in us and SY in us
-
-    def test_connect_and_close(self):
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
+    def test_connect_and_close_sys(self, console_app_env):
+        us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
+        us.available_systems[SS].update(SYS_DICTS[SS])
+        assert us.connect() == ''
         assert us.disconnect() == ''
 
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SS,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME) == ''
+    def test_connect_and_close_debug(self, console_app_env):
+        us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
+        us.available_systems[SS].update(SYS_DICTS[SS])
+        assert us.connect(debug_level=DEBUG_LEVEL_VERBOSE) == ''
         assert us.disconnect() == ''
 
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SX,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == 'ConnectError'
+    def test_connect_and_close_conn_err(self, console_app_env):
+        us = UsedSystems(console_app_env, SX, **ALL_CREDENTIALS)
+        us.available_systems[SX].update(SYS_DICTS[SX])
+        assert 'ConnectError' in us.connect()
         assert us.disconnect() == ''
 
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SX,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == 'ConnectError'
+    def test_connect_and_close_conn_err_debug(self, console_app_env):
+        us = UsedSystems(console_app_env, SX, **ALL_CREDENTIALS)
+        us.available_systems[SX].update(SYS_DICTS[SX])
+        assert 'ConnectError' in us.connect(debug_level=DEBUG_LEVEL_VERBOSE)
         assert us.disconnect() == ''
 
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SY,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
-        assert us.disconnect() == 'CloseError'
+    def test_connect_and_disconnect_err(self, console_app_env):
+        us = UsedSystems(console_app_env, SY, **ALL_CREDENTIALS)
+        us.available_systems[SY].update(SYS_DICTS[SY])
+        assert us.connect() == ''
+        assert 'DisconnectError' in us.disconnect()
 
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, SY,
-                         sys_cred_items=SYS_CRED_ITEMS, sys_cred_needed=SYS_CRED_NEEDED, sys_feat_items=SYS_FEAT_ITEMS,
-                         **SYS_CREDENTIALS)
-        assert us.connect(CONNECTORS, app_name=APP_NAME, debug_level=DBG_LEVEL_VERBOSE) == ''
-        assert us.disconnect() == 'CloseError'
-
-
-@pytest.fixture
-def load_config():
-    """ provide config parser for tests of config vars """
-    cmd_cfg_parser = ConfigParser()
-    cmd_cfg_parser.optionxform = str  # or use 'lambda option: option' to have case-sensitive INI/CFG var names
-    cmd_cfg_parser.read(os.path.join('tests', 'test.cfg'))
-    yield lambda var_name, section=SYS_SECTION_DEF: cmd_cfg_parser.get(section, var_name, fallback=None)
-    cmd_cfg_parser.clear()
-
-
-class TestConfig:
-    """ using the config test file test.cfg """
-    def test_available(self, load_config):
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
-        assert us.available_systems == {'Ss': 'System S', 'Xx': 'SystemX', 'Yy': 'SysY'}
-        assert us.available_rec_types == {'C': 'Clients', 'R': 'Reservations', 'P': 'Products'}
-
-    def test_credentials(self, load_config):
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
-        assert us._systems[SS].credentials == {'User': 'cfg_user_ss'}
-        assert us._systems[SX].credentials == {'User': 'cfg_user_xx'}
-        assert us._systems[SY].credentials == {'User': 'cfg_user_yy'}
-
-    def test_features(self, load_config):
-        us = UsedSystems(DBG_LEVEL_DISABLED, DBG_LEVEL_VERBOSE, config_getters=(load_config, ))
-        assert us._systems[SS].features == ["ssFeature='feature_ss'"]
-        assert us._systems[SX].features == ["xxFeature='feature_xx'"]
-        assert us._systems[SY].features == ["yyFeature='feature_yy'"]
+    def test_connect_and_close_err(self, console_app_env):
+        us = UsedSystems(console_app_env, SY, **ALL_CREDENTIALS)
+        us.available_systems[SY].update(SYS_DICTS[SY])
+        assert us.connect(debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        us[SY].connection.disconnect = None
+        assert 'CloseError' in us.disconnect()
