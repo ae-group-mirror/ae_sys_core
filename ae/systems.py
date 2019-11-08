@@ -58,7 +58,7 @@ from typing import Any, Dict, Optional, Sequence
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
 from ae.console import ConsoleApp                               # type: ignore   # mypy
 
-__version__ = '0.0.10'
+__version__ = '0.0.11'
 
 
 HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)

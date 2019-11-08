@@ -12,7 +12,6 @@ import os
 import pprint
 import re
 import setuptools
-import sys
 from typing import Dict, List
 
 
@@ -68,6 +67,7 @@ def determine_package_vars(portion_root_path: str, portion_type: str = PT_MOD, p
         portion_name = "{portion-name}"
 
     p_vars = dict()
+    p_vars['namespace_name'] = namespace_name
     p_vars['portion_type'] = portion_type
     p_vars['portion_name'] = portion_name
     p_vars['portion_file_name'] = portion_name + (os.path.sep + '__init__.py' if portion_type == PT_PKG else PY_EXT)
@@ -146,7 +146,6 @@ package_vars['portions_import_names'] = ("\n" + " " * 4).join(
 
 
 if __name__ == "__main__":
-    verbose_run = '-v' in sys.argv or '--verbose' in sys.argv
     setup_kwargs = dict(
         name=package_name,              # pip install name (not the import package name)
         version=package_vars['package_version'],
@@ -185,12 +184,7 @@ if __name__ == "__main__":
             'development',
         ]
     )
-
-    if verbose_run:
-        print("#  EXECUTING SETUPTOOLS SETUP #################################")
-        print(pprint.pformat(setup_kwargs, indent=3, width=75, compact=True))
-
+    print("#  EXECUTING SETUPTOOLS SETUP #################################")
+    print(pprint.pformat(setup_kwargs, indent=3, width=75, compact=True))
     setuptools.setup(**setup_kwargs)
-
-    if verbose_run:
-        print("#  FINISHED SETUPTOOLS SETUP  #################################")
+    print("#  FINISHED SETUPTOOLS SETUP  #################################")
