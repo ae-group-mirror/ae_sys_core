@@ -22,7 +22,7 @@ dynamic system properties
 The properties of your systems are specified within :ref:`config files <.console.config files>`
 as :ref:`~.console.config-variables`.
 
-The only mandatory config variable is a dict with the name `AvailableSystems`, where the dict keys
+The only mandatory config variable is a dict with the name `availableSystems`, where the dict keys
 are the system ids. The dict items are also dicts with string keys and called `system configs`.
 Only `name` is mandatory in the system configs. The following system config dict keys are supported:
 
@@ -37,8 +37,7 @@ The value of each credential and feature key gets automatically dynamically read
 variable. The name of these config variables is the key string, prefixed with the system id in
 lower case. So if e.g. the value of a credential key 'User' for the system id 'Abc' will be
 loaded from a config variable with the name `abcUser`. All the credential and feature config
-variables can be either stored in the main or the systems section (and can optionally be
-prefixed with `sys_init_` for to prevent name conflicts) - see also :func:`config_value`.
+variables can be either stored in the main or the systems section - see also :func:`config_value`.
 
 An example of a system configuration you find in the config file `test.cfg`, situated in the
 tests folder of this package.
@@ -58,29 +57,26 @@ from typing import Any, Dict, Optional, Sequence
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
 from ae.console import ConsoleApp                               # type: ignore   # mypy
 
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 
 HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
-CFG_INIT_VAR_PREFIX = 'sys_init_'               #: prefix for long/unique config variable names
 
 
 def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     """ determine system configuration setting value from application config options/variables.
 
-    :param var_name:        config variable name. Variable value gets searched in the application instance config,
-                            first in the options, then in MAIN_SECTION_NAME/aeOptions,
-                            then in SYS_SECTION_NAME/aeSystems and finally in SYS_SECTION_NAME with the
-                            variable name prefix CFG_INIT_VAR_PREFIX/'sys_init_'.
+    :param var_name:        config variable name. Variable value gets searched in the application instance environment,
+                            first in the :ref:`application config options <.console.config-options>`,
+                            then in the :ref:`application config variables <config-variables>` (first within
+                            the section MAIN_SECTION_NAME/aeOptions and then within SYS_SECTION_NAME/aeSystems.
     :param console_app:     ConsoleApp instance of the application providing these config options/variables.
     :return:                config variable value if found else None.
     """
     val = console_app.get_var(var_name)
     if val is None:
         val = console_app.get_var(var_name, section=SYS_SECTION_NAME)
-        if val is None:
-            val = console_app.get_var(CFG_INIT_VAR_PREFIX + var_name, section=SYS_SECTION_NAME)
     return val
 
 
@@ -188,9 +184,9 @@ class UsedSystems(OrderedDict):
         :param selected_systems:        optional iterable of system id strings of the available systems that have to be
                                         initialized for the app specified by the :paramref:`.console_app` argument.
                                         If no system id get passed then all available systems will be initialized
-                                        from the config variable `aeSystems/sys_init_AvailableSystems`.
+                                        from the config variable `availableSystems`.
         :param entered_credentials:     optional dict of credentials entered by a user at run-time (overwriting
-                                        the values set in the related config variable `sys_init_AvailableSystems`).
+                                        the values set in the related config variable `availableSystems`).
                                         The keys of this dictionary starting with the system id in lower case,
                                         followed by one of the key strings specified in the **credential_keys** config
                                         list (see :ref:`system-properties`).
@@ -200,10 +196,10 @@ class UsedSystems(OrderedDict):
 
         self.console_app = console_app
 
-        conf_systems = config_value('AvailableSystems', self.console_app)
+        conf_systems = config_value('availableSystems', self.console_app)
         if not conf_systems:
             # noinspection PyProtectedMember
-            self.console_app.po(f"****  UsedSystems don't found the 'AvailableSystems' option or config variable"
+            self.console_app.po(f"****  UsedSystems don't found the 'availableSystems' option or config variable"
                                 f"in the config files ({self.console_app._cfg_files})")
             return
         if selected_systems:
