@@ -54,12 +54,12 @@ individual config files for each application instance with a separate config fil
 """
 from collections import OrderedDict
 import importlib
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence, Union, cast
 
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
 from ae.console import ConsoleApp                               # type: ignore   # mypy
 
-__version__ = '0.0.14'
+__version__ = '0.0.15'
 
 
 HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)
@@ -206,7 +206,7 @@ class UsedSystems(OrderedDict):
             self.console_app.po(f"****  UsedSystems don't found the 'availableSystems' option or config variable"
                                 f"in the config files ({self.console_app._cfg_files})")
             return
-        self.available_systems: Dict[str, str]
+        self.available_systems: Dict[str, Dict[str, Union[Dict[str, str], str]]]
         if selected_systems:
             self.available_systems = {k: v for k, v in conf_systems.items() if k in selected_systems}
         else:
@@ -258,7 +258,7 @@ class UsedSystems(OrderedDict):
         """
         assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
         assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"
-        rec_types = self.available_systems[sys_id].get('available_rec_types')
+        rec_types = cast(Optional[Dict[str, str]], self.available_systems[sys_id].get('available_rec_types'))
         self._systems[sys_id] = _System(sys_id, self.console_app, credentials, features, rec_types)
 
     def connect(self, debug_level: Optional[int] = None, force_reconnect: bool = False) -> str:
