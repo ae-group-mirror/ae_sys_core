@@ -1,4 +1,5 @@
 """ ae_systems unit tests """
+from configparser import ConfigParser
 import pytest
 import sys
 
@@ -186,7 +187,7 @@ class TestUsedSystems:
         assert us[SS].credentials[CRED_KEY_USR] == USR_CFG
         assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
 
-    def test_init_selected_one(self, console_app_env):
+    def test_init_selected_one_and_verbose(self, console_app_env):
         console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
         us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
         assert SS in us.available_systems
@@ -195,6 +196,27 @@ class TestUsedSystems:
         assert SS in us and SX not in us and SY not in us
         assert us[SS].credentials[CRED_KEY_USR] == USR_NAME1
         assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
+        assert PWD_CFG in repr(us)      # password is visible because of DEBUG_LEVEL_VERBOSE
+
+    def test_init_missing_cfg(self, console_app_env):
+        print("POPPED", console_app_env._cfg_files.pop(-1))  # remove tests/test.cfg and reset ConfigParser for coverage
+        console_app_env._cfg_parser = ConfigParser()
+        console_app_env.load_cfg_files()
+        us = UsedSystems(console_app_env)
+        assert getattr(us, 'available_systems', None) is None
+
+    def test_init_missing_cred(self, console_app_env):
+        us = UsedSystems(console_app_env)
+        us.available_systems[SS]['credential_keys'] += ('MissingCredentialKey', )
+        us.clear()
+        us._load_merge_cred_feat(dict())
+        assert SS not in us
+
+    def test_init_hidden_password(self, console_app_env):
+        console_app_env.debug_level = DEBUG_LEVEL_ENABLED
+        us = UsedSystems(console_app_env)
+        assert us[SS].credentials[CRED_KEY_PWD] == PWD_CFG
+        assert PWD_CFG not in repr(us)
 
     def test_connect_and_close_sys(self, console_app_env):
         us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
