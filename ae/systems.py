@@ -19,25 +19,27 @@ are instances of the private class :class:`_System`.
 dynamic system properties
 .........................
 
-The properties of your systems are specified within :ref:`config files <.console.config files>`
-as :ref:`~.console.config-variables`.
+The properties of your systems are specified within config :ref:`files <config files>`
+as :ref:`variables <config-variables>`.
 
-The only mandatory config variable is a dict with the name `availableSystems`, where the dict keys
-are the system ids. The dict items are also dicts with string keys and called `system configs`.
-Only `name` is mandatory in the system configs. The following system config dict keys are supported:
+The only mandatory config variable is a dict with the name `availableSystems`, with the system ids
+as dict keys. The items of this dict are also dicts with string keys and called `system configs`.
+Only the key `name` is mandatory in these system configs.
+The following system config dict keys are supported:
 
 * **name** : system name (used for repr() and debugging).
 * **credential_keys** : List[str] of credential keys needed for to connect to this system.
 * **feature_keys** : List[str] of feature keys supported by this system.
 * **available_rec_types** : Dict[str, str] of supported rec type ids and names.
-* **connector_module** : name of the connector package.module (def=ae.sys_data_<system-id>).
+* **connector_module** : name of the connector package.module (def=ae.sys_data_<system-id-in-lower-case>).
 * **connector_class** : name of the connector class (def=<system-id>SysConnector),
 
-The value of each credential and feature key gets automatically dynamically read from a config
-variable. The name of these config variables is the key string, prefixed with the system id in
+The value of each credential and feature key gets automatically dynamically read from a config option or
+variable. The name of these config options/variables consists of the key string, prefixed with the system id in
 lower case. So if e.g. the value of a credential key 'User' for the system id 'Abc' will be
 loaded from a config variable with the name `abcUser`. All the credential and feature config
-variables can be either stored in the main or the systems section - see also :func:`config_value`.
+variables can be either stored in the main or the systems section of the config files - see
+also :func:`config_value`.
 
 An example of a system configuration you find in the config file `test.cfg`, situated in the
 tests folder of this package.
@@ -48,7 +50,7 @@ multiple system configurations
 
 For to provide multiple system configurations for the same application (suite) you can use
 individual config files for each application instance with a separate config file
-(see .sys_env<SYS_ENV_ID>.cfg :ref:`here <.console.config-files>`).
+(see .sys_env<SYS_ENV_ID>.cfg :ref:`here <config-files>`).
 """
 from collections import OrderedDict
 import importlib
@@ -57,7 +59,7 @@ from typing import Any, Dict, Optional, Sequence
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
 from ae.console import ConsoleApp                               # type: ignore   # mypy
 
-__version__ = '0.0.13'
+__version__ = '0.0.14'
 
 
 HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)
@@ -68,7 +70,7 @@ def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     """ determine system configuration setting value from application config options/variables.
 
     :param var_name:        config variable name. Variable value gets searched in the application instance environment,
-                            first in the :ref:`application config options <.console.config-options>`,
+                            first in the :ref:`application config options <config-options>`,
                             then in the :ref:`application config variables <config-variables>` (first within
                             the section MAIN_SECTION_NAME/aeOptions and then within SYS_SECTION_NAME/aeSystems.
     :param console_app:     ConsoleApp instance of the application providing these config options/variables.
@@ -100,7 +102,8 @@ class _System:
         self.console_app = console_app                  #: application instance and config environment
         self.credentials = credentials                  #: credentials for to connect to this system
         self.features = features                        #: system specific features and configs
-        self.available_rec_types = available_rec_types or dict()  #: record types available in this system
+        self.available_rec_types: Dict[str, str] = \
+            available_rec_types or dict()               #: record types available in this system
 
         self.connection: Any = None                     #: object with opt. connect() and disconnect()/close() methods
         self.conn_error: str = ""                       #: error message of last dis-/connecting
@@ -127,7 +130,8 @@ class _System:
 
         :param sys_config:          dict with the :ref:`dynamic config properties of this system <system-properties>`.
         :param debug_level:         optional debug level passed to system connector (def=self.ca.debug_level).
-        :param force_reconnect:     optional; pass True to force re-connection (even if self.connection is initialized).
+        :param force_reconnect:     optional; pass True to force re-connection (even if self.connection is
+                                    already initialized).
         :return:                    error message or empty string in case of no errors while re-connecting.
         """
         if debug_level is None:
@@ -182,9 +186,9 @@ class UsedSystems(OrderedDict):
 
         :param console_app:             ConsoleApp instance of the application using these systems.
         :param selected_systems:        optional iterable of system id strings of the available systems that have to be
-                                        initialized for the app specified by the :paramref:`.console_app` argument.
-                                        If no system id get passed then all available systems will be initialized
-                                        from the config variable `availableSystems`.
+                                        initialized for the app specified by the :paramref:`~UsedSystems.console_app`
+                                        argument. If no system id get passed then all available systems will be
+                                        initialized from the config variable `availableSystems`.
         :param entered_credentials:     optional dict of credentials entered by a user at run-time (overwriting
                                         the values set in the related config variable `availableSystems`).
                                         The keys of this dictionary starting with the system id in lower case,
@@ -202,6 +206,7 @@ class UsedSystems(OrderedDict):
             self.console_app.po(f"****  UsedSystems don't found the 'availableSystems' option or config variable"
                                 f"in the config files ({self.console_app._cfg_files})")
             return
+        self.available_systems: Dict[str, str]
         if selected_systems:
             self.available_systems = {k: v for k, v in conf_systems.items() if k in selected_systems}
         else:
@@ -212,7 +217,8 @@ class UsedSystems(OrderedDict):
     def _load_merge_cred_feat(self, entered_credentials: Dict[str, str]):
         """ load and initialize all used system configs and merge entered credentials into it.
 
-        :param entered_credentials:     see :paramref:`UsedSystems.entered_credentials`.
+        :param entered_credentials:     passed over unchanged from :class:`UsedSystems` - see
+                                        :paramref:`~UsedSystems.entered_credentials`.
         """
         debug_level = self.console_app.debug_level
         for sys_id, sys_config in self.available_systems.items():
