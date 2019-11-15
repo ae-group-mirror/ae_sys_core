@@ -1,4 +1,4 @@
-""" ae_systems unit tests """
+""" ae_sys_core unit tests """
 from configparser import ConfigParser
 import pytest
 import sys
@@ -7,7 +7,7 @@ import sys
 from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
 from ae.console import ConsoleApp
 # noinspection PyProtectedMember
-from ae.systems import _System, UsedSystems
+from ae.sys_core import _System, UsedSystems
 
 
 SS = 'Ss'                               # test system ids; change together with related config var in test.cfg
@@ -37,7 +37,7 @@ def console_app_env():
     """ ConsoleApp with automatic option arg reset and app unregister """
     old_argv = sys.argv
     sys.argv = ['test_app_key', ]
-    yield ConsoleApp('Console App Environment for ae.systems unit tests', additional_cfg_files=('tests/test.cfg', ))
+    yield ConsoleApp('Console App Environment for ae.sys_core unit tests', additional_cfg_files=('tests/test.cfg', ))
     with app_inst_lock:
         app_keys = list(reversed(list(_app_instances.keys())))
         for key in app_keys:

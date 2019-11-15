@@ -56,13 +56,12 @@ from collections import OrderedDict
 import importlib
 from typing import Any, Dict, Optional, Sequence, Union, cast
 
-from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE   # type: ignore   # mypy doesn't find namespace pck
-from ae.console import ConsoleApp                               # type: ignore   # mypy
+from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIALS   # type: ignore   # mypy
+from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pck
 
-__version__ = '0.0.15'
+__version__ = '0.0.16'
 
 
-HIDDEN_CREDENTIALS = ('Password', 'Token')      #: credential keys that are hidden in print/repr output (not if verbose)
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
 
 
@@ -119,7 +118,7 @@ class _System:
         if self.console_app.debug_level != DEBUG_LEVEL_DISABLED:
             cre = self.credentials
             ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
-                              {k: v for k, v in cre.items() if k not in HIDDEN_CREDENTIALS})
+                              {k: v for k, v in cre.items() if k.lower() not in HIDDEN_CREDENTIALS})
             ret += "_" + repr(self.features)
             ret += "@" + repr(self.console_app.app_name)
         return ret
@@ -232,7 +231,7 @@ class UsedSystems(OrderedDict):
                     break  # ignore/skip not fully specified system - continue with next available system
                 credentials[cred_key] = found_cred
                 if debug_level > DEBUG_LEVEL_DISABLED:
-                    if debug_level < DEBUG_LEVEL_VERBOSE and cred_key in HIDDEN_CREDENTIALS:
+                    if debug_level < DEBUG_LEVEL_VERBOSE and cred_key.lower() in HIDDEN_CREDENTIALS:
                         found_cred = "<hidden>"
                     self.console_app.po(f"..    found credential {cred_var}={found_cred}")
             else:
