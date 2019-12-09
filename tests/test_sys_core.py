@@ -6,8 +6,7 @@ import sys
 # noinspection PyProtectedMember
 from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
 from ae.console import ConsoleApp
-# noinspection PyProtectedMember
-from ae.sys_core import _System, UsedSystems
+from ae.sys_core import SystemBase, SystemConnectionBase, UsedSystems
 
 
 SS = 'Ss'                               # test system ids; change together with related config var in test.cfg
@@ -69,10 +68,10 @@ class TestConfig:
         assert us[SY].features == ["Feature=feature_yy"]
 
 
-class TestSystem:
+class TestSystemBase:
     def test_init_empty_cred(self, console_app_env):
         empty_dict = dict()
-        s = _System(SX, console_app_env, empty_dict)
+        s = SystemBase(SX, console_app_env, empty_dict)
         assert s.sys_id == SX
         assert s.credentials == empty_dict
         assert s.features == ()
@@ -82,17 +81,17 @@ class TestSystem:
     def test_init_entered_cred(self, console_app_env):
         user_cred = dict(User='test_usr_name')
         feat = ('WhatAFeature', )
-        s = _System(SX, console_app_env, user_cred, feat)
+        s = SystemBase(SX, console_app_env, user_cred, feat)
         assert s.sys_id == SX
         assert s.credentials == user_cred
         assert s.features == feat
         assert s.connection is None
         assert s.conn_error == ''
 
-    def test_repr_debug_change(self, console_app_env):
+    def test_repr_debug_enabled(self, console_app_env):
         ext_cred = SYS_CREDENTIALS.copy()
         ext_cred[CRED_KEY_PWD] = 's_e_c_r_e_t'
-        s = _System(SS, console_app_env, ext_cred, features=SYS_FEATURES)
+        s = SystemBase(SS, console_app_env, ext_cred, features=SYS_FEATURES)
         usr = s.credentials.get(CRED_KEY_USR)
         pwd = s.credentials.get(CRED_KEY_PWD)
         assert SS in repr(s)
@@ -108,15 +107,8 @@ class TestSystem:
         assert FEATURE1 in repr(s)
         assert console_app_env.app_name in repr(s)
 
-        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
-        assert SS in repr(s)
-        assert usr in repr(s)
-        assert pwd in repr(s)
-        assert FEATURE1 in repr(s)
-        assert console_app_env.app_name in repr(s)
-
     def test_repr_debug_verbose(self, console_app_env):
-        s = _System(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        s = SystemBase(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
         s.console_app.debug_level = DEBUG_LEVEL_VERBOSE
         usr = s.credentials.get(CRED_KEY_USR)
         assert SS in repr(s)
@@ -125,15 +117,30 @@ class TestSystem:
         assert repr(s.features) in repr(s)
         assert console_app_env.app_name in repr(s)
 
+    def test_repr_debug_verbose_pwd(self, console_app_env):
+        ext_cred = SYS_CREDENTIALS.copy()
+        ext_cred[CRED_KEY_PWD] = 's_e_c_r_e_t'
+        s = SystemBase(SS, console_app_env, ext_cred, features=SYS_FEATURES)
+        usr = s.credentials.get(CRED_KEY_USR)
+        pwd = s.credentials.get(CRED_KEY_PWD)
+
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        assert SS in repr(s)
+        assert usr in repr(s)
+        assert pwd in repr(s)
+        assert FEATURE1 in repr(s)
+        assert console_app_env.app_name in repr(s)
+
     def test_repr_after_error(self, console_app_env):
-        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        s = SystemBase(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
         assert SX in repr(s)
-        assert s.connect(SYS_DICTS[SX], debug_level=DEBUG_LEVEL_VERBOSE) == 'ConnectError'
+        assert s.connect(SYS_DICTS[SX]) == 'ConnectError'
         assert s.conn_error == 'ConnectError'
         assert s.conn_error in repr(s)
 
     def test_connect_and_close(self, console_app_env):
-        s = _System(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        s = SystemBase(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
         assert s.connect(SYS_DICTS[SS]) == ''
         assert hasattr(s.connection, 'connect')
         assert s.conn_error == ''
@@ -141,22 +148,24 @@ class TestSystem:
         assert s.conn_error == ''
 
     def test_connect_error(self, console_app_env):
-        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        s = SystemBase(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
         assert s.connect(SYS_DICTS[SX]) == 'ConnectError'
         assert not hasattr(s.connection, 'connect')
         assert s.conn_error == 'ConnectError'
         assert s.disconnect() == ''
         assert s.conn_error == ''
 
-        s = _System(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
-        assert s.connect(SYS_DICTS[SX], debug_level=DEBUG_LEVEL_VERBOSE) == 'ConnectError'
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        s = SystemBase(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SX]) == 'ConnectError'
         assert s.conn_error == 'ConnectError'
         assert s.disconnect() == ''
         assert s.conn_error == ''
 
     def test_close_error(self, console_app_env):
-        s = _System(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
-        assert s.connect(SYS_DICTS[SY], debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        s = SystemBase(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SY]) == ''
         assert hasattr(s.connection, 'disconnect')
         s.connection.disconnect = None
         assert s.conn_error == ''
@@ -164,12 +173,64 @@ class TestSystem:
         assert s.conn_error == 'CloseError'
 
     def test_disconnect_error(self, console_app_env):
-        s = _System(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
-        assert s.connect(SYS_DICTS[SY], debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
+        s = SystemBase(SY, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        assert s.connect(SYS_DICTS[SY]) == ''
         assert hasattr(s.connection, 'close')
         s.connection.close = None
         assert s.disconnect() == 'DisconnectError'
         assert s.conn_error == 'DisconnectError'
+
+
+class TestSystemConnectionBase:
+    def test_init(self, console_app_env):
+        empty_dict = dict()
+        s = SystemBase(SX, console_app_env, empty_dict)
+        sc = SystemConnectionBase(s)
+        assert sc.system is s
+        assert sc.console_app is console_app_env
+        assert sc.last_err_msg == ""
+        assert sc.system.credentials is empty_dict
+
+    def test_repr_debug_change(self, console_app_env):
+        ext_cred = SYS_CREDENTIALS.copy()
+        ext_cred[CRED_KEY_PWD] = 's_e_c_r_e_t'
+        s = SystemBase(SS, console_app_env, ext_cred, features=SYS_FEATURES)
+        sc = SystemConnectionBase(s)
+        usr = sc.system.credentials.get(CRED_KEY_USR)
+        pwd = sc.system.credentials.get(CRED_KEY_PWD)
+        assert SS in repr(sc)
+        assert usr not in repr(sc)
+        assert pwd not in repr(sc)
+        assert FEATURE1 not in repr(sc)
+        assert console_app_env.app_name not in repr(sc)
+
+    def test_connect_exception(self, console_app_env):
+        empty_dict = dict()
+        s = SystemBase(SX, console_app_env, empty_dict)
+        sc = SystemConnectionBase(s)
+        with pytest.raises(NotImplementedError):
+            sc.connect()
+
+    def test_repr_debug_verbose(self, console_app_env):
+        s = SystemBase(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        s.console_app.debug_level = DEBUG_LEVEL_VERBOSE
+        sc = SystemConnectionBase(s)
+        usr = sc.system.credentials.get(CRED_KEY_USR)
+        assert SS in repr(sc)
+        assert usr in repr(sc)
+        assert FEATURE1 in repr(sc)
+        assert repr(s.features) in repr(sc)
+        assert console_app_env.app_name in repr(sc)
+
+    def test_repr_after_error(self, console_app_env):
+        s = SystemBase(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
+        sc = SystemConnectionBase(s)
+        tem = "TestErrorMessage"
+        sc.last_err_msg = tem
+        assert SX in repr(sc)
+        assert sc.last_err_msg == tem
+        assert tem in repr(sc)
 
 
 class TestUsedSystems:
@@ -225,9 +286,10 @@ class TestUsedSystems:
         assert us.disconnect() == ''
 
     def test_connect_and_close_debug(self, console_app_env):
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
         us = UsedSystems(console_app_env, SS, **ALL_CREDENTIALS)
         us.available_systems[SS].update(SYS_DICTS[SS])
-        assert us.connect(debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        assert us.connect() == ''
         assert us.disconnect() == ''
 
     def test_connect_and_close_conn_err(self, console_app_env):
@@ -237,9 +299,10 @@ class TestUsedSystems:
         assert us.disconnect() == ''
 
     def test_connect_and_close_conn_err_debug(self, console_app_env):
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
         us = UsedSystems(console_app_env, SX, **ALL_CREDENTIALS)
         us.available_systems[SX].update(SYS_DICTS[SX])
-        assert 'ConnectError' in us.connect(debug_level=DEBUG_LEVEL_VERBOSE)
+        assert 'ConnectError' in us.connect()
         assert us.disconnect() == ''
 
     def test_connect_and_disconnect_err(self, console_app_env):
@@ -249,8 +312,9 @@ class TestUsedSystems:
         assert 'DisconnectError' in us.disconnect()
 
     def test_connect_and_close_err(self, console_app_env):
+        console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
         us = UsedSystems(console_app_env, SY, **ALL_CREDENTIALS)
         us.available_systems[SY].update(SYS_DICTS[SY])
-        assert us.connect(debug_level=DEBUG_LEVEL_VERBOSE) == ''
+        assert us.connect() == ''
         us[SY].connection.disconnect = None
         assert 'CloseError' in us.disconnect()
