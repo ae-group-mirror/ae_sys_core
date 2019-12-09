@@ -61,6 +61,7 @@ For to provide multiple system configurations for the same application (suite) y
 individual config files for each application instance with a separate config file
 (see .sys_env<SYS_ENV_ID>.cfg :ref:`here <config-files>`).
 """
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 import importlib
 from typing import Any, Dict, Optional, Sequence, Union, cast
@@ -69,7 +70,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.0.17'
+__version__ = '0.0.18'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -171,7 +172,7 @@ class SystemBase:
         return err_msg
 
 
-class SystemConnectionBase:
+class SystemConnectionBase(ABC):
     """ abstract base class - sub-class represents the connection to an external system. """
     instances: int = 0
 
@@ -202,9 +203,9 @@ class SystemConnectionBase:
             ret += "@" + repr(self.console_app.app_name)
         return ret
 
+    @abstractmethod
     def connect(self) -> str:
         """ abstract method - raising NotImplementedError, so has to be implemented by the sub-class. """
-        raise NotImplementedError
 
 
 class UsedSystems(OrderedDict):

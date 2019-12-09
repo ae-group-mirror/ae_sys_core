@@ -182,11 +182,21 @@ class TestSystemBase:
         assert s.conn_error == 'DisconnectError'
 
 
+class SystemConn(SystemConnectionBase):
+    """ basic stub implementation of abstract base class """
+    def connect(self) -> str:
+        """ dummpy connect """
+        return self.last_err_msg
+
+
 class TestSystemConnectionBase:
     def test_init(self, console_app_env):
         empty_dict = dict()
         s = SystemBase(SX, console_app_env, empty_dict)
-        sc = SystemConnectionBase(s)
+        with pytest.raises(TypeError):
+            SystemConnectionBase(s)
+
+        sc = SystemConn(s)
         assert sc.system is s
         assert sc.console_app is console_app_env
         assert sc.last_err_msg == ""
@@ -196,7 +206,7 @@ class TestSystemConnectionBase:
         ext_cred = SYS_CREDENTIALS.copy()
         ext_cred[CRED_KEY_PWD] = 's_e_c_r_e_t'
         s = SystemBase(SS, console_app_env, ext_cred, features=SYS_FEATURES)
-        sc = SystemConnectionBase(s)
+        sc = SystemConn(s)
         usr = sc.system.credentials.get(CRED_KEY_USR)
         pwd = sc.system.credentials.get(CRED_KEY_PWD)
         assert SS in repr(sc)
@@ -205,17 +215,16 @@ class TestSystemConnectionBase:
         assert FEATURE1 not in repr(sc)
         assert console_app_env.app_name not in repr(sc)
 
-    def test_connect_exception(self, console_app_env):
+    def test_connect(self, console_app_env):
         empty_dict = dict()
         s = SystemBase(SX, console_app_env, empty_dict)
-        sc = SystemConnectionBase(s)
-        with pytest.raises(NotImplementedError):
-            sc.connect()
+        sc = SystemConn(s)
+        assert sc.connect() == ""
 
     def test_repr_debug_verbose(self, console_app_env):
         s = SystemBase(SS, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
         s.console_app.debug_level = DEBUG_LEVEL_VERBOSE
-        sc = SystemConnectionBase(s)
+        sc = SystemConn(s)
         usr = sc.system.credentials.get(CRED_KEY_USR)
         assert SS in repr(sc)
         assert usr in repr(sc)
@@ -225,7 +234,7 @@ class TestSystemConnectionBase:
 
     def test_repr_after_error(self, console_app_env):
         s = SystemBase(SX, console_app_env, SYS_CREDENTIALS, features=SYS_FEATURES)
-        sc = SystemConnectionBase(s)
+        sc = SystemConn(s)
         tem = "TestErrorMessage"
         sc.last_err_msg = tem
         assert SX in repr(sc)
