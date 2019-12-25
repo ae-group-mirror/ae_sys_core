@@ -70,7 +70,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.0.18'
+__version__ = '0.0.19'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -172,8 +172,8 @@ class SystemBase:
         return err_msg
 
 
-class SystemConnectionBase(ABC):
-    """ abstract base class - sub-class represents the connection to an external system. """
+class SystemConnectorBase(ABC):
+    """ abstract system connector base class - sub-class establishes the connection to an external system. """
     instances: int = 0
 
     def __init__(self, system: SystemBase):
@@ -185,7 +185,7 @@ class SystemConnectionBase(ABC):
         self.console_app = system.console_app   #: application instance and config environment
         self.last_err_msg: str = ""             #: last system connection error message(s)
 
-        SystemConnectionBase.instances += 1
+        SystemConnectorBase.instances += 1
 
     def __repr__(self) -> str:
         """ representation string of this :class:`SystemBase` instance.

@@ -6,7 +6,7 @@ import sys
 # noinspection PyProtectedMember
 from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
 from ae.console import ConsoleApp
-from ae.sys_core import SystemBase, SystemConnectionBase, UsedSystems
+from ae.sys_core import SystemBase, SystemConnectorBase, UsedSystems
 
 
 SS = 'Ss'                               # test system ids; change together with related config var in test.cfg
@@ -182,7 +182,7 @@ class TestSystemBase:
         assert s.conn_error == 'DisconnectError'
 
 
-class SystemConn(SystemConnectionBase):
+class SystemConn(SystemConnectorBase):
     """ basic stub implementation of abstract base class """
     def connect(self) -> str:
         """ dummpy connect """
@@ -194,7 +194,7 @@ class TestSystemConnectionBase:
         empty_dict = dict()
         s = SystemBase(SX, console_app_env, empty_dict)
         with pytest.raises(TypeError):
-            SystemConnectionBase(s)
+            SystemConnectorBase(s)
 
         sc = SystemConn(s)
         assert sc.system is s
