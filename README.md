@@ -36,6 +36,7 @@ full-featured applications with Python.
 
 ## installation
 
+
 Execute the following command for to use the ae.sys_core module in your
 application. It will install ae.sys_core into your python (virtual) environment:
  
@@ -44,7 +45,7 @@ pip install ae-sys-core
 ```
 
 If you instead want to contribute to this portion then first fork
-[the ae-sys-core repository at GitLab](https://gitlab.com/ae-group/ae_sys_core "ae.sys_core code repository"),
+[the ae_sys_core repository at GitLab](https://gitlab.com/ae-group/ae_sys_core "ae.sys_core code repository"),
 then pull it to your machine and finally execute the following command in the root folder
 of this repository (ae_sys_core):
 
@@ -64,6 +65,8 @@ More info on the features and usage of this portion are available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.sys_core.html#module-ae.sys_core
 "ae_sys_core documentation").
 
-<!-- Common files version 0.0.34 deployed (with 0.0.34)
-     to the ae_sys_core module version 0.0.11.
+<!-- Common files version 0.0.60 deployed version 0.1.20 (with 0.0.60)
+     to https://gitlab.com/ae-group as ae_sys_core module as well as
+     to https://ae-group.gitlab.io with CI check results as well as
+     to https://pypi.org/project/ae-sys-core as namespace portion ae-sys-core.
 -->
