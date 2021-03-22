@@ -3,6 +3,7 @@ from configparser import ConfigParser
 import pytest
 import sys
 
+from ae.base import CFG_EXT
 # noinspection PyProtectedMember
 from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
 from ae.console import ConsoleApp
@@ -36,7 +37,7 @@ def console_app_env():
     """ ConsoleApp with automatic option arg reset and app unregister """
     old_argv = sys.argv
     sys.argv = ['test_app_key', ]
-    yield ConsoleApp('Console App Environment for ae.sys_core unit tests', additional_cfg_files=('tests/test.cfg', ))
+    yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + CFG_EXT, ))
     with app_inst_lock:
         app_keys = list(reversed(list(_app_instances.keys())))
         for key in app_keys:
@@ -185,7 +186,7 @@ class TestSystemBase:
 class SystemConn(SystemConnectorBase):
     """ basic stub implementation of abstract base class """
     def connect(self) -> str:
-        """ dummpy connect """
+        """ mock/dummy connect """
         return self.last_err_msg
 
 
