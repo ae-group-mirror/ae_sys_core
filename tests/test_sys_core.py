@@ -5,7 +5,7 @@ import sys
 
 from ae.base import CFG_EXT
 # noinspection PyProtectedMember
-from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _app_instances, _unregister_app_instance
+from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _APP_INSTANCES, _unregister_app_instance
 from ae.console import ConsoleApp
 from ae.sys_core import SystemBase, SystemConnectorBase, UsedSystems
 
@@ -39,7 +39,7 @@ def console_app_env():
     sys.argv = ['test_app_key', ]
     yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + CFG_EXT, ))
     with app_inst_lock:
-        app_keys = list(reversed(list(_app_instances.keys())))
+        app_keys = list(reversed(list(_APP_INSTANCES.keys())))
         for key in app_keys:
             _unregister_app_instance(key)   # remove app from ae.core app register/dict
     sys.argv = old_argv
