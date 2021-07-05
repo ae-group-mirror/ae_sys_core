@@ -2,25 +2,22 @@
 dynamic system configuration, initialization and connection
 ===========================================================
 
-This module allows the dynamic (data-driven) configuration and connection of your application
-to all their needed external systems (like servers, databases, cloud stores, ...).
+this module allows the dynamic (data-driven) configuration and connection of your application to all their needed
+external systems (like servers, databases, cloud stores, ...).
 
 
 system classes
 --------------
 
-The :class:`SystemBase` class represents a single system. The creation of instances of
-this class is automatically done :ref:`dynamically <system-properties>` by the
-(mostly unique) instance of the class :class:`UsedSystems`.
+the :class:`SystemBase` class represents a single system. the creation of instances of this class is automatically done
+:ref:`dynamically <system-properties>` by the (mostly unique) instance of the class :class:`UsedSystems`.
 
-Each instance of :class:`SystemBase` is using a system-specific connector class for
-to establish an internal connection to the represented system. For the implementation of
-a connector class, simply inherit from the abstract base class
+each instance of :class:`SystemBase` is using a system-specific connector class to establish an internal connection to
+the represented system. for the implementation of a connector class, simply inherit from the abstract base class
 :class:`SystemConnectionBase` - also provided by this module.
 
-By creating an instance of the class :class:`UsedSystems` you get a dictionary-like
-object with all the properties for each configured system. The items of this dict
-are instances of the class :class:`SystemBase`.
+by creating an instance of the class :class:`UsedSystems` you get a dictionary-like object with all the properties for
+each configured system. the items of this dict are instances of the class :class:`SystemBase`.
 
 
 .. _system-properties:
@@ -28,36 +25,34 @@ are instances of the class :class:`SystemBase`.
 dynamic system properties
 .........................
 
-The properties of your systems are specified within config :ref:`files <config files>`
-as :ref:`variables <config-variables>`.
+the properties of your systems are specified within config :ref:`files <config files>` as
+:ref:`variables <config-variables>`.
 
-The only mandatory config variable is a dict with the name `availableSystems`, with the system-ids
-as dict keys. The items of this dict are also dicts with string keys and called `system configs`.
-Only the key `name` is mandatory in these system configs.
-The following system config dict keys are supported:
+the only mandatory config variable is a dict with the name `availableSystems`, with the system-ids as dict keys. the
+items of this dict are also dicts with string keys and called `system configs`. only the key `name` is mandatory in
+these system configs. the following system config dict keys are supported:
 
 * **name** : system name (long name of system-id, only used for repr() and debugging).
-* **credential_keys** : List[str] of credential keys needed for to connect to this system.
+* **credential_keys** : List[str] of credential keys needed to connect to this system.
 * **feature_keys** : List[str] of feature keys supported by this system.
 * **available_rec_types** : Dict[str, str] of supported rec type ids and names.
 * **connector_module** : name of the connector package.module (def=ae.sys_data_<system-id-in-lower-case>).
 * **connector_class** : name of the connector class (def=<system-id>SysConnector),
 
-The value of each credential and feature key gets automatically dynamically read from a config option or
-variable. The name of these config options/variables consists of the key string, prefixed with the system id in
-lower case. So if e.g. the value of a credential key 'User' for the system id 'Abc' will be
-loaded from a config variable with the name `abcUser`. All the credential and feature config
-variables can be either stored in the main or the systems section of the config files - see
-also :func:`config_value`.
+the value of each credential and feature key gets automatically dynamically read from a config option or variable. the
+name of these config options/variables consists of the key string, prefixed with the system id in lower case. so if e.g.
+the value of a credential key 'User' for the system id 'Abc' will be loaded from a config variable with the name
+`abcUser`. all the credential and feature config variables can be either stored in the main or the systems section of
+the config files - see also :func:`config_value`.
 
-An example of a system configuration you find in the config file `test.cfg`, situated in the
-tests folder of this package.
+an example of a system configuration you find in the config file `test.cfg`, situated in the tests folder of this
+package.
 
 
 multiple system configurations
 ..............................
 
-For to provide multiple system configurations for the same application (suite) you can use
+to provide multiple system configurations for the same application (suite) you can use
 individual config files for each application instance with a separate config file
 (see .sys_env<SYS_ENV_ID>.cfg :ref:`here <config-files>`).
 """
@@ -70,7 +65,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.2.21'
+__version__ = '0.2.22'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -79,7 +74,7 @@ SYS_SECTION_NAME = 'aeSystems'                  #: section name for system confi
 def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     """ determine system configuration setting value from application config options/variables.
 
-    :param var_name:        config variable name. Variable value gets searched in the application instance environment,
+    :param var_name:        config variable name. variable value gets searched in the application instance environment,
                             first in the :ref:`application config options <config-options>`,
                             then in the :ref:`application config variables <config-variables>` (first within
                             the section MAIN_SECTION_NAME/aeOptions and then within SYS_SECTION_NAME/aeSystems.
@@ -100,15 +95,15 @@ class SystemBase:
                  rec_types: Optional[Dict[str, str]] = None):
         """ create new :class:`SystemBase` instance.
 
-        :param sys_id:      unique str for to identify a system (also used as prefix/suffix).
+        :param sys_id:      unique str to identify a system (also used as prefix/suffix).
         :param console_app: ConsoleApp instance of the application using these systems.
-        :param credentials: dict for to access system, containing e.g. user name, password, token, dsn...
+        :param credentials: dict to access system, containing e.g. user name, password, token, dsn...
         :param features:    optional list with special features for this system (see SDF_* constants).
         :param rec_types:   optional dict of available record types for this system.
         """
         self.sys_id = sys_id                            #: system id
         self.console_app = console_app                  #: application instance and config environment
-        self.credentials = credentials                  #: credentials for to connect to this system
+        self.credentials = credentials                  #: credentials to connect to this system
         self.features = features                        #: system specific features and configs
         self.available_rec_types: Dict[str, str] = \
             rec_types or dict()                         #: record types available in this system
@@ -209,17 +204,17 @@ class SystemConnectorBase(ABC):
 
 
 class UsedSystems(OrderedDict):
-    """ An instance of this class is keeping a dictionary of all the found and used systems of this application.
+    """ an instance of this class is keeping a dictionary of all the found and used systems of this application.
 
-    The keys of this dictionary-like class are the system ids of your application. The items are instances
+    the keys of this dictionary-like class are the system ids of your application. the items are instances
     of the :class:`SystemBase` class.
 
-    Each instance is providing additionally the following instance attributes:
+    each instance is providing additionally the following instance attributes:
 
     * *console_app* - instance of the :class:`~.console.ConsoleApp` class that is using these systems.
     * *available_systems* - system properties loaded from config files.
 
-    All the system-specific properties are stored within the :class:`SystemBase` instances.
+    all the system-specific properties are stored within the :class:`SystemBase` instances.
     """
     def __init__(self, console_app: ConsoleApp, *selected_systems: str, **entered_credentials: str):
         """ create new instance of :class:`UsedSystems`.
@@ -227,11 +222,11 @@ class UsedSystems(OrderedDict):
         :param console_app:             ConsoleApp instance of the application using these systems.
         :param selected_systems:        optional iterable of system id strings of the available systems that have to be
                                         initialized for the app specified by the :paramref:`~UsedSystems.console_app`
-                                        argument. If no system id get passed then all available systems will be
+                                        argument. if no system id get passed then all available systems will be
                                         initialized from the config variable `availableSystems`.
         :param entered_credentials:     optional dict of credentials entered by a user at run-time (overwriting
                                         the values set in the related config variable `availableSystems`).
-                                        The keys of this dictionary starting with the system id in lower case,
+                                        the keys of this dictionary starting with the system id in lower case,
                                         followed by one of the key strings specified in the **credential_keys** config
                                         list (see :ref:`system-properties`).
         """
@@ -262,13 +257,13 @@ class UsedSystems(OrderedDict):
         """
         debug_level = self.console_app.debug_level
         for sys_id, sys_config in self.available_systems.items():
-            self.console_app.po(f"###   Loading configuration of {sys_config.get('name')} system ({sys_id})...")
+            self.console_app.po(f"###   loading configuration of {sys_config.get('name')} system ({sys_id})...")
             credentials = dict()
             for cred_key in sys_config.get('credential_keys', ()):
                 cred_var = sys_id.lower() + cred_key
                 found_cred = entered_credentials.get(cred_var, config_value(cred_var, self.console_app))
                 if found_cred is None:
-                    self.console_app.po(f"***   Ignoring system {sys_id}; credential {cred_var} undefined/incomplete")
+                    self.console_app.po(f"***   ignoring system {sys_id}; credential {cred_var} undefined/incomplete")
                     break  # ignore/skip not fully specified system - continue with next available system
                 credentials[cred_key] = found_cred
                 if debug_level > DEBUG_LEVEL_DISABLED:
