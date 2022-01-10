@@ -26,9 +26,9 @@ ALL_CREDENTIALS = {SS.lower() + CRED_KEY_USR: USR_NAME1,
 SYS_CREDENTIALS = {CRED_KEY_USR: USR_NAME1}
 FEATURE1 = 'ss_extra_feature'
 SYS_FEATURES = [FEATURE1]
-SYS_DICTS = {SS: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'connector_success_mock'},
-             SX: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'connector_failure_mock'},
-             SY: {'connector_module': 'tests.sys_core_test_mocks', 'connector_class': 'disconnect_failure_mock'}
+SYS_DICTS = {SS: {'connector_module': 'sys_core_test_mocks', 'connector_class': 'connector_success_mock'},
+             SX: {'connector_module': 'sys_core_test_mocks', 'connector_class': 'connector_failure_mock'},
+             SY: {'connector_module': 'sys_core_test_mocks', 'connector_class': 'disconnect_failure_mock'}
              }
 
 
@@ -71,7 +71,7 @@ class TestConfig:
 
 class TestSystemBase:
     def test_init_empty_cred(self, console_app_env):
-        empty_dict = dict()
+        empty_dict = {}
         s = SystemBase(SX, console_app_env, empty_dict)
         assert s.sys_id == SX
         assert s.credentials == empty_dict
@@ -192,7 +192,7 @@ class SystemConn(SystemConnectorBase):
 
 class TestSystemConnectionBase:
     def test_init(self, console_app_env):
-        empty_dict = dict()
+        empty_dict = {}
         s = SystemBase(SX, console_app_env, empty_dict)
         with pytest.raises(TypeError):
             SystemConnectorBase(s)
@@ -217,7 +217,7 @@ class TestSystemConnectionBase:
         assert console_app_env.app_name not in repr(sc)
 
     def test_connect(self, console_app_env):
-        empty_dict = dict()
+        empty_dict = {}
         s = SystemBase(SX, console_app_env, empty_dict)
         sc = SystemConn(s)
         assert sc.connect() == ""
@@ -280,7 +280,7 @@ class TestUsedSystems:
         us = UsedSystems(console_app_env)
         us.available_systems[SS]['credential_keys'] += ('MissingCredentialKey', )
         us.clear()
-        us._load_merge_cred_feat(dict())
+        us._load_merge_cred_feat({})
         assert SS not in us
 
     def test_init_hidden_password(self, console_app_env):

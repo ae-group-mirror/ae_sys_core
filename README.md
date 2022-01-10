@@ -1,32 +1,34 @@
-<!--
-  THIS FILE IS EXCLUSIVELY MAINTAINED IN THE NAMESPACE ROOT PACKAGE. CHANGES HAVE TO BE DONE THERE.
--->
-# sys_core portion of ae namespace package
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae V0.2.85 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev_tpl_namespace_root V0.3.6 -->
+# sys_core 0.3.22
 
-[![GitLabPipeline](https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/master?logo=python)](
+[![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/develop?logo=python)](
     https://gitlab.com/ae-group/ae_sys_core)
-[![PyPIVersion](https://img.shields.io/pypi/v/ae_sys_core)](
+[![LatestPyPIrelease](
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/release0.2.22?logo=python)](
+    https://gitlab.com/ae-group/ae_sys_core/-/tree/release0.2.22)
+[![PyPIVersions](https://img.shields.io/pypi/v/ae_sys_core)](
     https://pypi.org/project/ae-sys-core/#history)
 
->The portions (modules and sub-packages) of the Application Environment for Python are within
-the `ae` namespace and are providing helper methods and classes to develop
-full-featured applications with Python.
+>ae namespace module portion sys_core: dynamic system configuration, initialization and connection.
 
 [![Coverage](https://ae-group.gitlab.io/ae_sys_core/coverage.svg)](
-    https://ae-group.gitlab.io/ae_sys_core/coverage/ae_sys_core_py.html)
+    https://ae-group.gitlab.io/ae_sys_core/coverage/index.html)
 [![MyPyPrecision](https://ae-group.gitlab.io/ae_sys_core/mypy.svg)](
     https://ae-group.gitlab.io/ae_sys_core/lineprecision.txt)
 [![PyLintScore](https://ae-group.gitlab.io/ae_sys_core/pylint.svg)](
     https://ae-group.gitlab.io/ae_sys_core/pylint.log)
 
 [![PyPIImplementation](https://img.shields.io/pypi/implementation/ae_sys_core)](
-    https://pypi.org/project/ae-sys-core/)
+    https://gitlab.com/ae-group/ae_sys_core/)
 [![PyPIPyVersions](https://img.shields.io/pypi/pyversions/ae_sys_core)](
-    https://pypi.org/project/ae-sys-core/)
+    https://gitlab.com/ae-group/ae_sys_core/)
 [![PyPIWheel](https://img.shields.io/pypi/wheel/ae_sys_core)](
-    https://pypi.org/project/ae-sys-core/)
+    https://gitlab.com/ae-group/ae_sys_core/)
 [![PyPIFormat](https://img.shields.io/pypi/format/ae_sys_core)](
     https://pypi.org/project/ae-sys-core/)
+[![PyPILicense](https://img.shields.io/pypi/l/ae_sys_core)](
+    https://gitlab.com/ae-group/ae_sys_core/-/blob/develop/LICENSE.md)
 [![PyPIStatus](https://img.shields.io/pypi/status/ae_sys_core)](
     https://libraries.io/pypi/ae-sys-core)
 [![PyPIDownloads](https://img.shields.io/pypi/dm/ae_sys_core)](
@@ -36,36 +38,38 @@ full-featured applications with Python.
 ## installation
 
 
-execute the following command to use the ae.sys_core module in your
-application. it will install ae.sys_core into your python (virtual) environment:
+execute the following command to install the
+ae.sys_core module
+in the currently active virtual environment:
  
 ```shell script
 pip install ae-sys-core
 ```
 
-if you instead want to contribute to this portion then first fork
-[the ae_sys_core repository at GitLab](https://gitlab.com/ae-group/ae_sys_core "ae.sys_core code repository"),
-then pull it to your machine and finally execute the following command in the root folder
-of this repository (ae_sys_core):
+if you want to contribute to this portion then first fork
+[the ae_sys_core repository at GitLab](
+https://gitlab.com/ae-group/ae_sys_core "ae.sys_core code repository").
+after that pull it to your machine and finally execute the
+following command in the root folder of this repository
+(ae_sys_core):
 
 ```shell script
 pip install -e .[dev]
 ```
 
-the last command will install this module portion into your virtual environment, along with
-the tools you need to develop and run tests or to extend the portion documentation.
-to contribute only to the unit tests or to the documentation of this portion replace
-the setup extras key `dev` in the above command with `tests` or `docs` respectively.
+the last command will install this module portion, along with the tools you need
+to develop and run tests or to extend the portion documentation. to contribute only to the unit tests or to the
+documentation of this portion, replace the setup extras key `dev` in the above command with `tests` or `docs`
+respectively.
+
+more detailed explanations on how to contribute to this project
+[are available here](
+https://gitlab.com/ae-group/ae_sys_core/-/blob/develop/CONTRIBUTING.rst)
 
 
 ## namespace portion documentation
 
-more info on the features and usage of this portion are available at
-[ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.sys_core.html#module-ae.sys_core
+information on the features and usage of this portion are available at
+[ReadTheDocs](
+https://ae.readthedocs.io/en/latest/_autosummary/ae.sys_core.html#module-ae.sys_core
 "ae_sys_core documentation").
-
-<!-- common files version 0.2.77 deployed version 0.2.21 (with 0.2.77)
-     to https://gitlab.com/ae-group as ae_sys_core module as well as
-     to https://ae-group.gitlab.io with CI check results as well as
-     to https://pypi.org/project/ae-sys-core as namespace portion ae-sys-core.
--->

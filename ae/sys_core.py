@@ -65,7 +65,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.2.22'
+__version__ = '0.3.22'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -106,10 +106,10 @@ class SystemBase:
         self.credentials = credentials                  #: credentials to connect to this system
         self.features = features                        #: system specific features and configs
         self.available_rec_types: Dict[str, str] = \
-            rec_types or dict()                         #: record types available in this system
+            rec_types or {}                             #: record types available in this system
 
         self.connection: Any = None                     #: object with opt. connect() and disconnect()/close() methods
-        self.conn_error: str = ""                     #: error message of last system access or dis-/connect
+        self.conn_error: str = ""                       #: error message of last system access or dis-/connect
 
         SystemBase.instances += 1
 
@@ -258,7 +258,7 @@ class UsedSystems(OrderedDict):
         debug_level = self.console_app.debug_level
         for sys_id, sys_config in self.available_systems.items():
             self.console_app.po(f"###   loading configuration of {sys_config.get('name')} system ({sys_id})...")
-            credentials = dict()
+            credentials = {}
             for cred_key in sys_config.get('credential_keys', ()):
                 cred_var = sys_id.lower() + cred_key
                 found_cred = entered_credentials.get(cred_var, config_value(cred_var, self.console_app))
@@ -272,7 +272,7 @@ class UsedSystems(OrderedDict):
                     self.console_app.po(f"..    found credential {cred_var}={found_cred}")
             else:
                 # now collect features for this system with complete credentials
-                features = list()
+                features = []
                 for feat_key in sys_config.get('feature_keys', ()):
                     feat_var = sys_id.lower() + feat_key
                     found_feat = config_value(feat_var, self.console_app)
@@ -302,7 +302,7 @@ class UsedSystems(OrderedDict):
         :param force_reconnect: optional; pass True to force re-connection (even if self.connection is initialized).
         :return:                error message or empty string in case of no errors while re-connecting.
         """
-        errors = list()
+        errors = []
         for sys_id, system in self._systems.items():
             assert sys_id in self.available_systems, f"sys_config for system {sys_id} missing"
             if system.connect(self.available_systems[sys_id], force_reconnect=force_reconnect)\
@@ -317,7 +317,7 @@ class UsedSystems(OrderedDict):
 
         :return:                error message string or empty string if no errors occurred on disconnection.
         """
-        errors = list()
+        errors = []
         for system in self._systems.values():
             err_msg = system.disconnect()
             if err_msg:
