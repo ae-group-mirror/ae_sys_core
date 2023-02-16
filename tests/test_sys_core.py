@@ -39,7 +39,7 @@ def console_app_env():
     sys.argv = ['test_app_key', ]
     yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + CFG_EXT, ))
     with app_inst_lock:
-        app_keys = list(reversed(list(_APP_INSTANCES.keys())))
+        app_keys = list(_APP_INSTANCES.keys())[::-1]
         for key in app_keys:
             _unregister_app_instance(key)   # remove app from ae.core app register/dict
     sys.argv = old_argv
