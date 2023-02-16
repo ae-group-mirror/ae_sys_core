@@ -65,7 +65,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.22'
+__version__ = '0.3.23'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
