@@ -3,7 +3,7 @@ dynamic system configuration, initialization and connection
 ===========================================================
 
 this module allows the dynamic (data-driven) configuration and connection of your application to all their needed
-external systems (like servers, databases, cloud stores, ...).
+external systems (like servers, databases, cloud storages, ...).
 
 
 system classes
@@ -56,16 +56,17 @@ to provide multiple system configurations for the same application (suite) you c
 individual config files for each application instance with a separate config file
 (see .sys_env<SYS_ENV_ID>.cfg :ref:`here <config-files>`).
 """
+import importlib
+
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-import importlib
 from typing import Any, Dict, Optional, Sequence, Union, cast
 
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIALS   # type: ignore   # mypy
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.23'
+__version__ = '0.3.24'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -74,12 +75,12 @@ SYS_SECTION_NAME = 'aeSystems'                  #: section name for system confi
 def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     """ determine system configuration setting value from application config options/variables.
 
-    :param var_name:        config variable name. variable value gets searched in the application instance environment,
-                            first in the :ref:`application config options <config-options>`,
-                            then in the :ref:`application config variables <config-variables>` (first within
-                            the section MAIN_SECTION_NAME/aeOptions and then within SYS_SECTION_NAME/aeSystems.
-    :param console_app:     ConsoleApp instance of the application providing these config options/variables.
-    :return:                config variable value if found else None.
+    :param var_name:            config variable name. variable value gets searched in the application instance
+                                environment, first in the :ref:`application config options <config-options>`,
+                                then in the :ref:`application config variables <config-variables>` (first within
+                                the section MAIN_SECTION_NAME/aeOptions) and then within SYS_SECTION_NAME/aeSystems.
+    :param console_app:         ConsoleApp instance of the application providing these config options/variables.
+    :return:                    config variable value if found else None.
     """
     val = console_app.get_var(var_name)
     if val is None:
@@ -95,11 +96,11 @@ class SystemBase:
                  rec_types: Optional[Dict[str, str]] = None):
         """ create new :class:`SystemBase` instance.
 
-        :param sys_id:      unique str to identify a system (also used as prefix/suffix).
-        :param console_app: ConsoleApp instance of the application using these systems.
-        :param credentials: dict to access system, containing e.g. user name, password, token, dsn...
-        :param features:    optional list with special features for this system (see SDF_* constants).
-        :param rec_types:   optional dict of available record types for this system.
+        :param sys_id:          unique str to identify a system (also used as prefix/suffix).
+        :param console_app:     ConsoleApp instance of the application using these systems.
+        :param credentials:     dict to access system, containing e.g. username, password, token, dsn...
+        :param features:        optional list with special features for this system (see SDF_* constants).
+        :param rec_types:       optional dict of available record types for this system.
         """
         self.sys_id = sys_id                            #: system id
         self.console_app = console_app                  #: application instance and config environment
@@ -108,7 +109,7 @@ class SystemBase:
         self.available_rec_types: Dict[str, str] = \
             rec_types or {}                             #: record types available in this system
 
-        self.connection: Any = None                     #: object with opt. connect() and disconnect()/close() methods
+        self.connection: Any = None                     #: object with optional connect()/disconnect()/close() methods
         self.conn_error: str = ""                       #: error message of last system access or dis-/connect
 
         SystemBase.instances += 1
@@ -116,7 +117,7 @@ class SystemBase:
     def __repr__(self) -> str:
         """ representation string of this :class:`SystemBase` instance.
 
-        :return: representation string of this instance.
+        :return:                representation string of this instance.
         """
         ret = self.sys_id
         if self.conn_error:
@@ -132,10 +133,10 @@ class SystemBase:
     def connect(self, sys_config: Dict[str, str], force_reconnect: bool = False) -> str:
         """ connect this instance to his system using a system connector class.
 
-        :param sys_config:          dict with the :ref:`dynamic config properties of this system <system-properties>`.
-        :param force_reconnect:     optional; pass True to force re-connection (even if self.connection is
-                                    already initialized).
-        :return:                    error message or empty string in case of no errors while re-connecting.
+        :param sys_config:      dict with the :ref:`dynamic config properties of this system <system-properties>`.
+        :param force_reconnect: optional; pass True to force re-connection (even if self.connection is
+                                already initialized).
+        :return:                error message or empty string in case of no errors while re-connecting.
         """
         self.conn_error = ""
         if not self.connection or force_reconnect:
@@ -154,7 +155,7 @@ class SystemBase:
     def disconnect(self) -> str:
         """ disconnect this external system.
 
-        :return:            error message string or empty string if no errors occurred on disconnection.
+        :return:                error message string or empty string if no errors occurred on disconnection.
         """
         err_msg = ""
         if self.connection:
@@ -168,13 +169,14 @@ class SystemBase:
 
 
 class SystemConnectorBase(ABC):
-    """ abstract system connector base class - sub-class establishes the connection to an external system. """
+    """ abstract system connector base class - subclass establishes the connection to an external system. """
     instances: int = 0
 
     def __init__(self, system: SystemBase):
         """ create new :class:`SystemBase` instance.
 
-        :param system:      instance of :class:`SystemBase` class that is representing the system using this connection.
+        :param system:          instance of :class:`SystemBase` class that is representing the system using
+                                this connection.
         """
         self.system = system                    #: SystemBase instance
         self.console_app = system.console_app   #: application instance and config environment
@@ -185,7 +187,7 @@ class SystemConnectorBase(ABC):
     def __repr__(self) -> str:
         """ representation string of this :class:`SystemBase` instance.
 
-        :return: representation string of this instance.
+        :return:                representation string of this instance.
         """
         ret = self.system.sys_id
         if self.last_err_msg:
@@ -200,7 +202,7 @@ class SystemConnectorBase(ABC):
 
     @abstractmethod
     def connect(self) -> str:
-        """ abstract method - raising NotImplementedError, so has to be implemented by the sub-class. """
+        """ abstract method - raising NotImplementedError, so has to be implemented by the subclass. """
 
 
 class UsedSystems(OrderedDict):
@@ -219,16 +221,16 @@ class UsedSystems(OrderedDict):
     def __init__(self, console_app: ConsoleApp, *selected_systems: str, **entered_credentials: str):
         """ create new instance of :class:`UsedSystems`.
 
-        :param console_app:             ConsoleApp instance of the application using these systems.
-        :param selected_systems:        optional iterable of system id strings of the available systems that have to be
-                                        initialized for the app specified by the :paramref:`~UsedSystems.console_app`
-                                        argument. if no system id get passed then all available systems will be
-                                        initialized from the config variable `availableSystems`.
-        :param entered_credentials:     optional dict of credentials entered by a user at run-time (overwriting
-                                        the values set in the related config variable `availableSystems`).
-                                        the keys of this dictionary starting with the system id in lower case,
-                                        followed by one of the key strings specified in the **credential_keys** config
-                                        list (see :ref:`system-properties`).
+        :param console_app:     ConsoleApp instance of the application using these systems.
+        :param selected_systems: optional iterable of system id strings of the available systems that have to be
+                                initialized for the app specified by the :paramref:`~UsedSystems.console_app`
+                                argument. if no system id get passed then all available systems will be
+                                initialized from the config variable `availableSystems`.
+        :param entered_credentials: optional dict of credentials entered by a user at run-time (overwriting
+                                the values set in the related config variable `availableSystems`).
+                                the keys of this dictionary starting with the system id in lower case,
+                                followed by one of the key strings specified in the **credential_keys** config
+                                list (see :ref:`system-properties`).
         """
         super().__init__()
         self._systems = self
@@ -252,8 +254,8 @@ class UsedSystems(OrderedDict):
     def _load_merge_cred_feat(self, entered_credentials: Dict[str, str]):
         """ load and initialize all used system configs and merge entered credentials into it.
 
-        :param entered_credentials:     passed over unchanged from :class:`UsedSystems` - see
-                                        :paramref:`~UsedSystems.entered_credentials`.
+        :param entered_credentials: passed over unchanged from :class:`UsedSystems` - see
+                                :paramref:`~UsedSystems.entered_credentials`.
         """
         debug_level = self.console_app.debug_level
         for sys_id, sys_config in self.available_systems.items():
@@ -287,9 +289,9 @@ class UsedSystems(OrderedDict):
     def _add_system(self, sys_id: str, credentials: Dict[str, str], features: Sequence[str] = ()):
         """ add new :class:`SystemBase` instance to this :class:`UsedSystems` instance.
 
-        :param sys_id:                  system id.
-        :param credentials:             credentials of the new system to add.
-        :param features:                optional list with special features for this system (see SDF_* constants).
+        :param sys_id:          system id.
+        :param credentials:     credentials of the new system to add.
+        :param features:        optional list with special features for this system (see SDF_* constants).
         """
         assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
         assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"

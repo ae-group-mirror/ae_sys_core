@@ -5,7 +5,8 @@ import sys
 
 from ae.base import CFG_EXT
 # noinspection PyProtectedMember
-from ae.core import DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _APP_INSTANCES, _unregister_app_instance
+from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _APP_INSTANCES,
+                     _unregister_app_instance)
 from ae.console import ConsoleApp
 from ae.sys_core import SystemBase, SystemConnectorBase, UsedSystems
 
@@ -95,6 +96,8 @@ class TestSystemBase:
         s = SystemBase(SS, console_app_env, ext_cred, features=SYS_FEATURES)
         usr = s.credentials.get(CRED_KEY_USR)
         pwd = s.credentials.get(CRED_KEY_PWD)
+
+        console_app_env.debug_level = DEBUG_LEVEL_DISABLED
         assert SS in repr(s)
         assert usr not in repr(s)
         assert pwd not in repr(s)
@@ -195,6 +198,7 @@ class TestSystemConnectionBase:
         empty_dict = {}
         s = SystemBase(SX, console_app_env, empty_dict)
         with pytest.raises(TypeError):
+            # noinspection PyAbstractClass
             SystemConnectorBase(s)
 
         sc = SystemConn(s)
@@ -210,6 +214,8 @@ class TestSystemConnectionBase:
         sc = SystemConn(s)
         usr = sc.system.credentials.get(CRED_KEY_USR)
         pwd = sc.system.credentials.get(CRED_KEY_PWD)
+        console_app_env.debug_level = DEBUG_LEVEL_DISABLED
+
         assert SS in repr(sc)
         assert usr not in repr(sc)
         assert pwd not in repr(sc)
