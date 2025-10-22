@@ -66,7 +66,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.25'
+__version__ = '0.3.26'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -92,6 +92,7 @@ class SystemBase:
     """ instance represents an external system, including their system properties and a connection object. """
     instances: int = 0
 
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(self, sys_id: str, console_app: ConsoleApp, credentials: dict[str, str], features: Sequence[str] = (),
                  rec_types: Optional[dict[str, str]] = None):
         """ create new :class:`SystemBase` instance.
