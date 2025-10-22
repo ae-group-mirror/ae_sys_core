@@ -1,13 +1,12 @@
 """ ae_sys_core unit tests """
-from configparser import ConfigParser
 import pytest
-import sys
+
+from configparser import ConfigParser
 
 from ae.base import CFG_EXT
-# noinspection PyProtectedMember
-from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, app_inst_lock, _APP_INSTANCES,
-                     _unregister_app_instance)
+from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE
 from ae.console import ConsoleApp
+
 from ae.sys_core import SystemBase, SystemConnectorBase, UsedSystems
 
 
@@ -34,16 +33,9 @@ SYS_DICTS = {SS: {'connector_module': 'sys_core_test_mocks', 'connector_class': 
 
 
 @pytest.fixture
-def console_app_env():
-    """ ConsoleApp with automatic option arg reset and app unregister """
-    old_argv = sys.argv
-    sys.argv = ['test_app_key', ]
+def console_app_env(restore_app_env):
+    """ ConsoleApp with automatic option, sys.argv reset and app unregister. """
     yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + CFG_EXT, ))
-    with app_inst_lock:
-        app_keys = list(_APP_INSTANCES.keys())[::-1]
-        for key in app_keys:
-            _unregister_app_instance(key)   # remove app from ae.core app register/dict
-    sys.argv = old_argv
 
 
 class TestConfig:
