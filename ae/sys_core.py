@@ -60,13 +60,13 @@ import importlib
 
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, Dict, Optional, Sequence, Union, cast
+from typing import Any, Optional, Sequence, Union, cast
 
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIALS   # type: ignore   # mypy
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.24'
+__version__ = '0.3.25'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -82,9 +82,9 @@ def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     :param console_app:         ConsoleApp instance of the application providing these config options/variables.
     :return:                    config variable value if found else None.
     """
-    val = console_app.get_var(var_name)
+    val = console_app.get_variable(var_name)
     if val is None:
-        val = console_app.get_var(var_name, section=SYS_SECTION_NAME)
+        val = console_app.get_variable(var_name, section=SYS_SECTION_NAME)
     return val
 
 
@@ -92,8 +92,8 @@ class SystemBase:
     """ instance represents an external system, including their system properties and a connection object. """
     instances: int = 0
 
-    def __init__(self, sys_id: str, console_app: ConsoleApp, credentials: Dict[str, str], features: Sequence[str] = (),
-                 rec_types: Optional[Dict[str, str]] = None):
+    def __init__(self, sys_id: str, console_app: ConsoleApp, credentials: dict[str, str], features: Sequence[str] = (),
+                 rec_types: Optional[dict[str, str]] = None):
         """ create new :class:`SystemBase` instance.
 
         :param sys_id:          unique str to identify a system (also used as prefix/suffix).
@@ -106,7 +106,7 @@ class SystemBase:
         self.console_app = console_app                  #: application instance and config environment
         self.credentials = credentials                  #: credentials to connect to this system
         self.features = features                        #: system specific features and configs
-        self.available_rec_types: Dict[str, str] = \
+        self.available_rec_types: dict[str, str] = \
             rec_types or {}                             #: record types available in this system
 
         self.connection: Any = None                     #: object with optional connect()/disconnect()/close() methods
@@ -130,7 +130,7 @@ class SystemBase:
             ret += "@" + repr(self.console_app.app_name)
         return ret
 
-    def connect(self, sys_config: Dict[str, str], force_reconnect: bool = False) -> str:
+    def connect(self, sys_config: dict[str, str], force_reconnect: bool = False) -> str:
         """ connect this instance to his system using a system connector class.
 
         :param sys_config:      dict with the :ref:`dynamic config properties of this system <system-properties>`.
@@ -243,7 +243,7 @@ class UsedSystems(OrderedDict):
             self.console_app.po(f"****  UsedSystems don't found the 'availableSystems' option or config variable"
                                 f"in the config files ({self.console_app._cfg_files})")
             return
-        self.available_systems: Dict[str, Dict[str, Union[Dict[str, str], str]]]
+        self.available_systems: dict[str, dict[str, Union[dict[str, str], str]]]
         if selected_systems:
             self.available_systems = {k: v for k, v in conf_systems.items() if k in selected_systems}
         else:
@@ -251,7 +251,7 @@ class UsedSystems(OrderedDict):
 
         self._load_merge_cred_feat(entered_credentials)
 
-    def _load_merge_cred_feat(self, entered_credentials: Dict[str, str]):
+    def _load_merge_cred_feat(self, entered_credentials: dict[str, str]):
         """ load and initialize all used system configs and merge entered credentials into it.
 
         :param entered_credentials: passed over unchanged from :class:`UsedSystems` - see
@@ -286,7 +286,7 @@ class UsedSystems(OrderedDict):
                 # finally add system to this used systems instance
                 self._add_system(sys_id, credentials, features=features)
 
-    def _add_system(self, sys_id: str, credentials: Dict[str, str], features: Sequence[str] = ()):
+    def _add_system(self, sys_id: str, credentials: dict[str, str], features: Sequence[str] = ()):
         """ add new :class:`SystemBase` instance to this :class:`UsedSystems` instance.
 
         :param sys_id:          system id.
@@ -295,7 +295,7 @@ class UsedSystems(OrderedDict):
         """
         assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
         assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"
-        rec_types = cast(Optional[Dict[str, str]], self.available_systems[sys_id].get('available_rec_types'))
+        rec_types = cast(Optional[dict[str, str]], self.available_systems[sys_id].get('available_rec_types'))
         self._systems[sys_id] = SystemBase(sys_id, self.console_app, credentials, features, rec_types)
 
     def connect(self, force_reconnect: bool = False) -> str:

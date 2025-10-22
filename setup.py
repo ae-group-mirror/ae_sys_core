@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.57
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.59
 """ setup of ae namespace module portion sys_core: dynamic system configuration, initialization and connection. """
 # noinspection PyUnresolvedReferences
 import sys
@@ -23,15 +23,15 @@ setup_kwargs = {
     'install_requires': ['ae_base', 'ae_core', 'ae_console'],
     'keywords': ['configuration', 'development', 'environment', 'productivity'],
     'license': 'GPL-3.0-or-later',
-    'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.97 -->\n'
- '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.19 -->\n'
- '# sys_core 0.3.24\n'
+    'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.101 -->\n'
+ '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.22 -->\n'
+ '# sys_core 0.3.25\n'
  '\n'
  '[![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/develop?logo=python)](\n'
  '    https://gitlab.com/ae-group/ae_sys_core)\n'
  '[![LatestPyPIrelease](\n'
- '    https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/release0.3.24?logo=python)](\n'
- '    https://gitlab.com/ae-group/ae_sys_core/-/tree/release0.3.24)\n'
+ '    https://img.shields.io/gitlab/pipeline/ae-group/ae_sys_core/release0.3.25?logo=python)](\n'
+ '    https://gitlab.com/ae-group/ae_sys_core/-/tree/release0.3.25)\n'
  '[![PyPIVersions](https://img.shields.io/pypi/v/ae_sys_core)](\n'
  '    https://pypi.org/project/ae-sys-core/#history)\n'
  '\n'
@@ -108,7 +108,7 @@ setup_kwargs = {
         'Source': 'https://ae.readthedocs.io/en/latest/_modules/ae/sys_core.html'},
     'python_requires': '>=3.9',
     'url': 'https://gitlab.com/ae-group/ae_sys_core',
-    'version': '0.3.24',
+    'version': '0.3.25',
     'zip_safe': True,
 }
 
