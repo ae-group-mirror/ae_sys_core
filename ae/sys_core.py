@@ -33,9 +33,9 @@ items of this dict are also dicts with string keys and called `system configs`. 
 these system configs. the following system config dict keys are supported:
 
 * **name** : system name (long name of system-id, only used for repr() and debugging).
-* **credential_keys** : List[str] of credential keys needed to connect to this system.
-* **feature_keys** : List[str] of feature keys supported by this system.
-* **available_rec_types** : Dict[str, str] of supported rec type ids and names.
+* **credential_keys** : list[str] of credential keys needed to connect to this system.
+* **feature_keys** : list[str] of feature keys supported by this system.
+* **available_rec_types** : dict[str, str] of supported rec type ids and names.
 * **connector_module** : name of the connector package.module (def=ae.sys_data_<system-id-in-lower-case>).
 * **connector_class** : name of the connector class (def=<system-id>SysConnector),
 
@@ -60,13 +60,14 @@ import importlib
 
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, Optional, Sequence, Union, cast
+from collections.abc import Sequence
+from typing import Any, cast
 
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIALS   # type: ignore   # mypy
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.26'
+__version__ = '0.3.27'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -94,7 +95,7 @@ class SystemBase:
 
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(self, sys_id: str, console_app: ConsoleApp, credentials: dict[str, str], features: Sequence[str] = (),
-                 rec_types: Optional[dict[str, str]] = None):
+                 rec_types: dict[str, str] | None = None):
         """ create new :class:`SystemBase` instance.
 
         :param sys_id:          unique str to identify a system (also used as prefix/suffix).
@@ -127,6 +128,7 @@ class SystemBase:
             cre = self.credentials
             ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
                               {k: v for k, v in cre.items() if k.lower() not in HIDDEN_CREDENTIALS})
+            # noinspection PyStringConversionWithoutDunderMethod
             ret += "_" + repr(self.features)
             ret += "@" + repr(self.console_app.app_name)
         return ret
@@ -197,6 +199,7 @@ class SystemConnectorBase(ABC):
             cre = self.system.credentials
             ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
                               {k: v for k, v in cre.items() if k.lower() not in HIDDEN_CREDENTIALS})
+            # noinspection PyStringConversionWithoutDunderMethod
             ret += "_" + repr(self.system.features)
             ret += "@" + repr(self.console_app.app_name)
         return ret
@@ -244,7 +247,7 @@ class UsedSystems(OrderedDict):
             self.console_app.po(f"****  UsedSystems don't found the 'availableSystems' option or config variable"
                                 f"in the config files ({self.console_app._cfg_files})")
             return
-        self.available_systems: dict[str, dict[str, Union[dict[str, str], str]]]
+        self.available_systems: dict[str, dict[str, dict[str, str] | str]]
         if selected_systems:
             self.available_systems = {k: v for k, v in conf_systems.items() if k in selected_systems}
         else:
@@ -296,7 +299,7 @@ class UsedSystems(OrderedDict):
         """
         assert sys_id in self.available_systems, f"UsedSystems._add_system(): unsupported system id {sys_id}"
         assert sys_id not in self._systems, f"UsedSystems._add_system(): system id {sys_id} already specified"
-        rec_types = cast(Optional[dict[str, str]], self.available_systems[sys_id].get('available_rec_types'))
+        rec_types = cast(dict[str, str] | None, self.available_systems[sys_id].get('available_rec_types'))
         self._systems[sys_id] = SystemBase(sys_id, self.console_app, credentials, features, rec_types)
 
     def connect(self, force_reconnect: bool = False) -> str:

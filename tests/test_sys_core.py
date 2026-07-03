@@ -7,6 +7,7 @@ from ae.base import CFG_EXT
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE
 from ae.console import ConsoleApp
 
+
 from ae.sys_core import SystemBase, SystemConnectorBase, UsedSystems
 
 
@@ -98,6 +99,7 @@ class TestSystemBase:
 
         console_app_env.debug_level = DEBUG_LEVEL_ENABLED
         assert SS in repr(s)
+        assert usr
         assert usr in repr(s)
         assert pwd not in repr(s)
         assert FEATURE1 in repr(s)
@@ -108,8 +110,10 @@ class TestSystemBase:
         s.console_app.debug_level = DEBUG_LEVEL_VERBOSE
         usr = s.credentials.get(CRED_KEY_USR)
         assert SS in repr(s)
+        assert usr
         assert usr in repr(s)
         assert FEATURE1 in repr(s)
+        # noinspection PyStringConversionWithoutDunderMethod
         assert repr(s.features) in repr(s)
         assert console_app_env.app_name in repr(s)
 
@@ -122,6 +126,7 @@ class TestSystemBase:
 
         console_app_env.debug_level = DEBUG_LEVEL_VERBOSE
         assert SS in repr(s)
+        assert usr and pwd
         assert usr in repr(s)
         assert pwd in repr(s)
         assert FEATURE1 in repr(s)
@@ -226,8 +231,10 @@ class TestSystemConnectionBase:
         sc = SystemConn(s)
         usr = sc.system.credentials.get(CRED_KEY_USR)
         assert SS in repr(sc)
+        assert usr
         assert usr in repr(sc)
         assert FEATURE1 in repr(sc)
+        # noinspection PyStringConversionWithoutDunderMethod
         assert repr(s.features) in repr(sc)
         assert console_app_env.app_name in repr(sc)
 
