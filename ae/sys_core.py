@@ -3,7 +3,7 @@ dynamic system configuration, initialization and connection
 ===========================================================
 
 this module allows the dynamic (data-driven) configuration and connection of your application to all their needed
-external systems (like servers, databases, cloud storages, ...).
+external systems (like servers, databases, cloud storages).
 
 
 system classes
@@ -14,7 +14,7 @@ the :class:`SystemBase` class represents a single system. the creation of instan
 
 each instance of :class:`SystemBase` is using a system-specific connector class to establish an internal connection to
 the represented system. for the implementation of a connector class, simply inherit from the abstract base class
-:class:`SystemConnectionBase` - also provided by this module.
+:class:`SystemConnectorBase` - also provided by this module.
 
 by creating an instance of the class :class:`UsedSystems` you get a dictionary-like object with all the properties for
 each configured system. the items of this dict are instances of the class :class:`SystemBase`.
@@ -67,7 +67,7 @@ from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, HIDDEN_CREDENTIAL
 from ae.console import ConsoleApp                               # type: ignore   # mypy doesn't find namespace pkg
 
 
-__version__ = '0.3.27'
+__version__ = '0.3.28'
 
 
 SYS_SECTION_NAME = 'aeSystems'                  #: section name for system config variables
@@ -77,9 +77,9 @@ def config_value(var_name: str, console_app: ConsoleApp) -> Any:
     """ determine system configuration setting value from application config options/variables.
 
     :param var_name:            config variable name. variable value gets searched in the application instance
-                                environment, first in the :ref:`application config options <config-options>`,
+                                environment, first in :ref:`application config options <config-options>`,
                                 then in the :ref:`application config variables <config-variables>` (first within
-                                the section MAIN_SECTION_NAME/aeOptions) and then within SYS_SECTION_NAME/aeSystems.
+                                the section 'aeOptions') and then within SYS_SECTION_NAME/aeSystems.
     :param console_app:         ConsoleApp instance of the application providing these config options/variables.
     :return:                    config variable value if found else None.
     """
@@ -100,7 +100,7 @@ class SystemBase:
 
         :param sys_id:          unique str to identify a system (also used as prefix/suffix).
         :param console_app:     ConsoleApp instance of the application using these systems.
-        :param credentials:     dict to access system, containing e.g. username, password, token, dsn...
+        :param credentials:     dict to access system, containing e.g. username, password, token, dsn.
         :param features:        optional list with special features for this system (see SDF_* constants).
         :param rec_types:       optional dict of available record types for this system.
         """
@@ -128,7 +128,6 @@ class SystemBase:
             cre = self.credentials
             ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
                               {k: v for k, v in cre.items() if k.lower() not in HIDDEN_CREDENTIALS})
-            # noinspection PyStringConversionWithoutDunderMethod
             ret += "_" + repr(self.features)
             ret += "@" + repr(self.console_app.app_name)
         return ret
@@ -199,7 +198,6 @@ class SystemConnectorBase(ABC):
             cre = self.system.credentials
             ret += "&" + repr(cre if self.console_app.debug_level >= DEBUG_LEVEL_VERBOSE else
                               {k: v for k, v in cre.items() if k.lower() not in HIDDEN_CREDENTIALS})
-            # noinspection PyStringConversionWithoutDunderMethod
             ret += "_" + repr(self.system.features)
             ret += "@" + repr(self.console_app.app_name)
         return ret
