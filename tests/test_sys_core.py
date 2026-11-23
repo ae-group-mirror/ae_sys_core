@@ -3,7 +3,6 @@ import pytest
 
 from configparser import ConfigParser
 
-from ae.base import CFG_EXT
 from ae.core import DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE
 from ae.console import ConsoleApp
 
@@ -36,7 +35,7 @@ SYS_DICTS = {SS: {'connector_module': 'sys_core_test_mocks', 'connector_class': 
 @pytest.fixture
 def console_app_env(restore_app_env):
     """ ConsoleApp with automatic option, sys.argv reset and app unregister. """
-    yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + CFG_EXT, ))
+    yield ConsoleApp('Console App Environment for ae.sys_core tests', additional_cfg_files=("tests/test" + '.cfg', ))
 
 
 class TestConfig:
@@ -92,7 +91,9 @@ class TestSystemBase:
 
         console_app_env.debug_level = DEBUG_LEVEL_DISABLED
         assert SS in repr(s)
+        assert usr
         assert usr not in repr(s)
+        assert pwd
         assert pwd not in repr(s)
         assert FEATURE1 not in repr(s)
         assert console_app_env.app_name not in repr(s)
@@ -101,6 +102,7 @@ class TestSystemBase:
         assert SS in repr(s)
         assert usr
         assert usr in repr(s)
+        assert pwd
         assert pwd not in repr(s)
         assert FEATURE1 in repr(s)
         assert console_app_env.app_name in repr(s)
@@ -113,7 +115,6 @@ class TestSystemBase:
         assert usr
         assert usr in repr(s)
         assert FEATURE1 in repr(s)
-        # noinspection PyStringConversionWithoutDunderMethod
         assert repr(s.features) in repr(s)
         assert console_app_env.app_name in repr(s)
 
@@ -190,7 +191,7 @@ class SystemConn(SystemConnectorBase):
         return self.last_err_msg
 
 
-class TestSystemConnectionBase:
+class TestSystemConnectorBase:
     def test_init(self, console_app_env):
         empty_dict = {}
         s = SystemBase(SX, console_app_env, empty_dict)
@@ -214,7 +215,9 @@ class TestSystemConnectionBase:
         console_app_env.debug_level = DEBUG_LEVEL_DISABLED
 
         assert SS in repr(sc)
+        assert usr
         assert usr not in repr(sc)
+        assert pwd
         assert pwd not in repr(sc)
         assert FEATURE1 not in repr(sc)
         assert console_app_env.app_name not in repr(sc)
@@ -234,7 +237,6 @@ class TestSystemConnectionBase:
         assert usr
         assert usr in repr(sc)
         assert FEATURE1 in repr(sc)
-        # noinspection PyStringConversionWithoutDunderMethod
         assert repr(s.features) in repr(sc)
         assert console_app_env.app_name in repr(sc)
 
@@ -283,6 +285,7 @@ class TestUsedSystems:
 
     def test_init_missing_cred(self, console_app_env):
         us = UsedSystems(console_app_env)
+        # noinspection unsupported-operator
         us.available_systems[SS]['credential_keys'] += ('MissingCredentialKey', )
         us.clear()
         us._load_merge_cred_feat({})
